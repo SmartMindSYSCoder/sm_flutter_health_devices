@@ -10,6 +10,7 @@ A unified Flutter plugin for health devices that wraps **sm_fitrus**, **sm_lepu*
 ## 🚀 Features
 
 - **Unified API**: Single interface for all health device measurements
+- **Smart Pairing Workflow**: Automated discovery, pairing, and saving for Omron devices
 - **Multiple Providers**: Support for Omron, Lepu Medical, Fitrus, and Raycome (future)
 - **Permission Management**: Centralized Bluetooth, Location, Audio, and Network permissions
 - **Unified Data Model**: `HealthVitalResult` covers all measurement types
@@ -102,7 +103,36 @@ healthDevices.getEvents().listen((event) {
 
 ---
 
-## 📖 Usage Examples
+## 📱 UI Components
+
+### SmHealthDeviceWidget
+
+The plugin includes a pre-built, production-ready widget that handles the entire measurement lifecycle:
+
+```dart
+SmHealthDeviceWidget(
+  measurementType: MeasurementType.bloodPressure,
+  provider: DeviceProvider.omron,
+  onResult: (result) {
+    print("Systolic: ${result.systolic}");
+  },
+  onCancel: () => Navigator.pop(context),
+)
+```
+
+**Built-in Logic:**
+- **Auto-Scanning**: Automatically scans for devices.
+- **Smart Pairing (Omron)**: 
+  - Checks for saved devices first.
+  - If found, connects immediately.
+  - If not found, opens a **Device Selector Dialog**.
+  - Pairs and saves the new device automatically.
+- **Unified Events**: Handles connection states (Scanning -> Measuring -> Completed/Error) internally.
+- **UI Feedback**: Shows progress bars, status messages, and error handling.
+
+---
+
+## 📖 Manual Usage Examples
 
 ### Weight Measurement
 
@@ -110,15 +140,14 @@ healthDevices.getEvents().listen((event) {
 // Using Lepu (ICOMON scale)
 await healthDevices.readWeight(provider: DeviceProvider.lepu);
 
-// Using Omron (requires saved device)
-final omronDevices = await healthDevices.getSavedOmronDevices();
-final weightScale = omronDevices.firstWhere(
-  (d) => d.deviceCategory == DeviceCategory.weight,
-);
-await healthDevices.readWeight(
-  provider: DeviceProvider.omron,
-  omronDevice: weightScale,
-);
+// Using Omron (Smart Manual Flow)
+final savedScale = await healthDevices.getSavedOmronDevices();
+if (savedScale.isNotEmpty) {
+   await healthDevices.readWeight(
+     provider: DeviceProvider.omron,
+     omronDevice: savedScale.first,
+   );
+}
 ```
 
 ### Blood Pressure
@@ -127,11 +156,26 @@ await healthDevices.readWeight(
 // Using Lepu (PC-102)
 await healthDevices.readBloodPressure(provider: DeviceProvider.lepu);
 
-// Using Omron (requires saved device)
-await healthDevices.readBloodPressure(
-  provider: DeviceProvider.omron,
-  omronDevice: savedBPDevice,
+// Using Omron (Smart Manual Flow)
+// 1. Get saved devices
+final savedDevices = await healthDevices.getSavedOmronDevices();
+
+// 2. Filter for BP Category
+final bpDevice = savedDevices.firstWhere(
+  (d) => d.deviceCategory == DeviceCategory.bloodPressure,
+  orElse: () => null,
 );
+
+if (bpDevice != null) {
+  // 3. Measure
+  await healthDevices.readBloodPressure(
+    provider: DeviceProvider.omron,
+    omronDevice: bpDevice,
+  );
+} else {
+  // 4. Handle pairing flow (handled automatically by SmHealthDeviceWidget)
+  print("Please pair a device first");
+}
 
 // Stop measurement (Lepu only)
 await healthDevices.stopBloodPressure();
@@ -154,6 +198,7 @@ await healthDevices.readTemperature(provider: DeviceProvider.omron);
 await healthDevices.readSpo2(provider: DeviceProvider.lepu);
 
 // Using Omron (P300)
+// Requires a paired Omron Pulse Oximeter
 await healthDevices.readSpo2(
   provider: DeviceProvider.omron,
   omronDevice: savedSpo2Device,
