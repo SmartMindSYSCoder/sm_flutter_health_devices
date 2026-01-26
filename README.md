@@ -109,6 +109,10 @@ healthDevices.getEvents().listen((event) {
 
 The plugin includes a pre-built, production-ready widget that handles the entire measurement lifecycle:
 
+### SmHealthDeviceWidget with Custom Builders
+
+For complete UI control, you can provide custom builders for every state:
+
 ```dart
 SmHealthDeviceWidget(
   measurementType: MeasurementType.bloodPressure,
@@ -116,7 +120,38 @@ SmHealthDeviceWidget(
   onResult: (result) {
     print("Systolic: ${result.systolic}");
   },
-  onCancel: () => Navigator.pop(context),
+  // 1. Waiting/Scanning/Measuring State
+  stateBuilder: (context, event, onCancel) {
+    return Column(
+      children: [
+        CircularProgressIndicator(value: event.progress / 100),
+        Text(event.message), // e.g. "Scanning...", "Measuring..."
+        TextButton(onPressed: onCancel, child: Text("Cancel")),
+      ],
+    );
+  },
+  // 2. Success State
+  successBuilder: (context, result, onSave, onRetry) {
+    return Column(
+      children: [
+        Icon(Icons.check_circle, color: Colors.green),
+        Text("BP: ${result.systolic}/${result.diastolic}"),
+        ElevatedButton(onPressed: onSave, child: Text("Save")),
+        TextButton(onPressed: onRetry, child: Text("Retry")),
+      ],
+    );
+  },
+  // 3. Error State
+  errorBuilder: (context, errorMessage, onRetry, onCancel) {
+    return Column(
+      children: [
+        Icon(Icons.error, color: Colors.red),
+        Text("Error: $errorMessage"),
+        ElevatedButton(onPressed: onRetry, child: Text("Retry")),
+        TextButton(onPressed: onCancel, child: Text("Close")),
+      ],
+    );
+  },
 )
 ```
 
@@ -128,7 +163,6 @@ SmHealthDeviceWidget(
   - If not found, opens a **Device Selector Dialog**.
   - Pairs and saves the new device automatically.
 - **Unified Events**: Handles connection states (Scanning -> Measuring -> Completed/Error) internally.
-- **UI Feedback**: Shows progress bars, status messages, and error handling.
 
 ---
 
