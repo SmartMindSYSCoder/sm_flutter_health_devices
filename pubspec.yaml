@@ -1,0 +1,67 @@
+name: sm_flutter_health_devices
+description: "Unified Flutter plugin for health devices - wraps sm_fitrus, sm_lepu, and sm_omron"
+version: 1.0.0
+publish_to: none
+homepage: https://github.com/SmartMindSYSCoder/sm_flutter_health_devices
+
+environment:
+  sdk: ^3.5.0
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # ------------------------------------------------------------------------
+  # Health Device Plugins (GitHub)
+  # ------------------------------------------------------------------------
+  
+  # Fitrus (Body Composition)
+  sm_fitrus:
+    git:
+      url: https://github.com/SmartMindSYSCoder/sm_fitrus.git
+
+  # Lepu (Oximeter, BP, Scale)
+  sm_lepu:
+    git:
+      url: https://github.com/SmartMindSYSCoder/sm_lepu.git
+
+  # Omron (BP, Body Composition)
+  sm_omron:
+    git:
+      url: https://github.com/SmartMindSYSCoder/sm_omron.git
+
+  # Raycome (Blood Pressure)
+  sm_raycome:
+    git:
+      url: https://github.com/SmartMindSYSCoder/sm_raycome.git
+  
+  # ------------------------------------------------------------------------
+  # Core Utilities
+  # ------------------------------------------------------------------------
+
+  # Permission handling
+  permission_handler: ^12.0.1
+  
+  # Connectivity check
+  connectivity_plus: ^7.0.0
+  
+  # Stream utilities for combining streams
+  rxdart: ^0.28.0
+
+  flutter_reactive_ble: ^5.4.0
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.smartmind.sm_flutter_health_devices
+        pluginClass: SmFlutterHealthDevicesPlugin
+      ios:
+        pluginClass: SmFlutterHealthDevicesPlugin
