@@ -24,7 +24,7 @@ A unified Flutter plugin for health devices that wraps **sm_fitrus**, **sm_lepu*
 | Measurement | Omron | Lepu | Fitrus | AccuChek | Raycome |
 |-------------|:-----:|:----:|:------:|:--------:|:-------:|
 | **Weight** | ✅ | ✅ | - | - | - |
-| **Blood Pressure** | ✅ | ✅ | - | - | 🔜 |
+| **Blood Pressure** | ✅ | ✅ | - | - | ✅ |
 | **Temperature** | ✅ | ✅ | - | - | - |
 | **SpO2** | ✅ | ✅ | - | - | - |
 | **Body Composition** | - | - | ✅ | - | - |
@@ -179,6 +179,9 @@ if (bpDevice != null) {
 
 // Stop measurement (Lepu only)
 await healthDevices.stopBloodPressure();
+
+// Using Raycome (RBP-9000)
+await healthDevices.readBloodPressure(provider: DeviceProvider.raycome);
 ```
 
 ### Temperature
