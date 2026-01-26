@@ -65,6 +65,9 @@ enum MeasurementType {
   /// Blood glucose measurement (glucometer)
   glucometer,
 
+  /// Height measurement
+  height,
+
   /// Unknown measurement type
   unknown;
 
@@ -87,6 +90,8 @@ enum MeasurementType {
         return 'Wheeze';
       case MeasurementType.glucometer:
         return 'Blood Glucose';
+      case MeasurementType.height:
+        return 'Height';
       case MeasurementType.unknown:
         return 'Unknown';
     }
@@ -115,6 +120,8 @@ enum MeasurementType {
         return [DeviceProvider.omron];
       case MeasurementType.glucometer:
         return [DeviceProvider.accucheck];
+      case MeasurementType.height:
+        return []; // No provider supported for height yet (manual entry usually)
       case MeasurementType.unknown:
         return [];
     }

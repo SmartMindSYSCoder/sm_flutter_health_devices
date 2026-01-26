@@ -123,8 +123,15 @@ class HealthVitalResult {
 
   // === Glucometer Fields (AccuChek) ===
 
+  // === Glucometer Fields (AccuChek) ===
+
   /// Blood glucose level in mg/dL
   final int? glucoseLevel;
+
+  // === Height Fields ===
+
+  /// Height in cm
+  final double? height;
 
   /// Raw data from the device (for debugging)
   final dynamic rawData;
@@ -173,6 +180,8 @@ class HealthVitalResult {
     this.wheezeDetected,
     // Glucometer
     this.glucoseLevel,
+    // Height
+    this.height,
     this.rawData,
   });
 
@@ -247,6 +256,8 @@ class HealthVitalResult {
         'wheezeDetected': wheezeDetected,
         // Glucometer
         'glucoseLevel': glucoseLevel,
+        // Height
+        'height': height,
       };
 
   @override
@@ -293,6 +304,9 @@ class HealthVitalResult {
           buffer.write(', glucose: $glucoseLevel mg/dL');
         }
         break;
+      case MeasurementType.height:
+        if (height != null) buffer.write(', height: ${height}cm');
+        break;
       case MeasurementType.unknown:
         break;
     }
@@ -337,6 +351,7 @@ class HealthVitalResult {
     int? bodyAge,
     bool? wheezeDetected,
     int? glucoseLevel,
+    double? height,
     dynamic rawData,
   }) {
     return HealthVitalResult(
@@ -375,6 +390,7 @@ class HealthVitalResult {
       bodyAge: bodyAge ?? this.bodyAge,
       wheezeDetected: wheezeDetected ?? this.wheezeDetected,
       glucoseLevel: glucoseLevel ?? this.glucoseLevel,
+      height: height ?? this.height,
       rawData: rawData ?? this.rawData,
     );
   }
