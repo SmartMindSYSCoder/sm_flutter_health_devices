@@ -147,7 +147,14 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         _smHealthDevices.readBloodPressure(provider: DeviceProvider.raycome);
       } else if (provider == DeviceProvider.omron) {
         _startOmronFlow();
-      } else if (provider == DeviceProvider.fitrus) {
+      } 
+      
+      else if(provider ==DeviceProvider.accucheck){
+
+        _smHealthDevices.readGlucose();
+      }
+      
+      else if (provider == DeviceProvider.fitrus) {
         // Handle Fitrus measurement via unified method
         if (widget.measurementType == MeasurementType.bodyComposition &&
             widget.userProfile != null &&
@@ -167,6 +174,8 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       } else if (provider == DeviceProvider.lepu) {
         _dispatchMeasurementCommand();
       }
+
+
     } catch (e) {
       _setError(e.toString());
     }
@@ -312,20 +321,24 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         _smHealthDevices.readBloodPressure(provider: widget.provider);
         break;
       case MeasurementType.weight:
-        if (widget.provider == DeviceProvider.lepu) {
+        // if (widget.provider == DeviceProvider.lepu) {
           _smHealthDevices.readWeight(provider: widget.provider);
-        }
+        // }
         break;
       case MeasurementType.spo2:
-        if (widget.provider == DeviceProvider.lepu) {
+        // if (widget.provider == DeviceProvider.lepu) {
           _smHealthDevices.readSpo2(provider: widget.provider);
-        }
+        // }
         break;
       case MeasurementType.temperature:
         if (widget.provider == DeviceProvider.lepu) {
           _smHealthDevices.readTemperature(provider: widget.provider);
         }
         break;
+
+         
+
+
       default:
         _setError(
             "Unsupported measurement type for this widget: ${widget.measurementType}");
