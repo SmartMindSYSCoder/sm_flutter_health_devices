@@ -114,9 +114,11 @@ The plugin includes a pre-built, production-ready widget that handles the entire
 
 - **4 Customizable States**: Init, Active (Scanning/Connecting/Measuring), Success, and Error
 - **Optional Init Screen**: Show a custom UI before starting the measurement
+- **Automatic Permission Checking**: Validates Bluetooth & Location permissions and services before starting
 - **Smart State Locking**: Success state remains stable even when device disconnects
 - **Auto-Pairing (Omron)**: Automatically handles device discovery and pairing
 - **Flexible Reset**: Return to init screen or retry measurement after success
+
 
 ---
 
@@ -544,6 +546,66 @@ Widget _buildMetric(String label, String value) {
 3. ✅ Display clear error messages in `errorBuilder`
 4. ✅ Use `onReset` to let users start fresh measurements
 5. ✅ Call `onSave` only when user confirms they want to save results
+
+---
+
+### 🔒 Automatic Permission Validation
+
+When you call `onStart()` from the `initBuilder`, the widget automatically validates all required permissions and services **before** transitioning to the `stateBuilder`. If any check fails, the widget will show the `errorBuilder` with a clear error message.
+
+#### Validation Checks (in order):
+
+1. **Bluetooth Permission** - Checks if Bluetooth permission is granted
+   - Error: `"Bluetooth permission is required. Please grant Bluetooth permission in settings."`
+
+2. **Location Permission** - Checks if Location permission is granted (required for BLE scanning)
+   - Error: `"Location permission is required for Bluetooth scanning. Please grant Location permission in settings."`
+
+3. **Bluetooth Service** - Checks if Bluetooth adapter is enabled
+   - Error: `"Bluetooth is disabled. Please enable Bluetooth in your device settings."`
+
+4. **Location Service** - Checks if Location/GPS is enabled
+   - Error: `"Location service is disabled. Please enable Location/GPS in your device settings."`
+
+#### Example Error Handling:
+
+```dart
+errorBuilder: (context, errorMessage, onRetry, onCancel) {
+  return Column(
+    children: [
+      Icon(Icons.error_outline, color: Colors.red, size: 64),
+      SizedBox(height: 16),
+      Text("Error", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      SizedBox(height: 8),
+      Text(
+        errorMessage, // Will show specific permission/service error
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 14),
+      ),
+      SizedBox(height: 32),
+      if (errorMessage.contains("permission") || errorMessage.contains("disabled"))
+        ElevatedButton(
+          onPressed: () async {
+            // Open settings to let user enable permission/service
+            await SmHealthDevices().permissions.openSettings();
+          },
+          child: Text("Open Settings"),
+        ),
+      SizedBox(height: 12),
+      ElevatedButton(
+        onPressed: onRetry, // Retry after user fixes the issue
+        child: Text("Try Again"),
+      ),
+      TextButton(
+        onPressed: onCancel,
+        child: Text("Cancel"),
+      ),
+    ],
+  );
+},
+```
+
+> **💡 Tip**: You don't need to manually request permissions before using `SmHealthDeviceWidget`. The widget handles all permission checks automatically when `onStart()` is called.
 
 ---
 

@@ -177,6 +177,24 @@ class HealthPermissionManager {
     return status.isGranted;
   }
 
+  /// Check if Bluetooth adapter is enabled (turned on)
+  Future<bool> isBluetoothEnabled() async {
+    try {
+      // On Android, we can check the service status
+      if (Platform.isAndroid) {
+        final serviceStatus = await Permission.bluetooth.serviceStatus;
+        return serviceStatus == ServiceStatus.enabled;
+      }
+      // On iOS, Bluetooth is always considered "enabled" if permission is granted
+      // The actual Bluetooth state is managed by the system
+      return true;
+    } catch (e) {
+      debugPrint('Error checking Bluetooth service: $e');
+      // If we can't check, assume it's enabled to avoid blocking
+      return true;
+    }
+  }
+
   /// Check if location service is enabled
   Future<bool> isLocationServiceEnabled() async {
     try {

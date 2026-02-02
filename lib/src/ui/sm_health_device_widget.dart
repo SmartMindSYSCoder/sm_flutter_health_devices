@@ -128,10 +128,46 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     });
 
     try {
-      // 1. Initialize Plugin (if needed)
+      // 1. Check Bluetooth Permission
+      final hasBluetoothPermission =
+          await _smHealthDevices.permissions.checkBluetoothPermissions();
+      if (!hasBluetoothPermission) {
+        _setError(
+            "Bluetooth permission is required. Please grant Bluetooth permission in settings.");
+        return;
+      }
+
+      // 2. Check Location Permission
+      final hasLocationPermission =
+          await _smHealthDevices.permissions.checkLocationPermission();
+      if (!hasLocationPermission) {
+        _setError(
+            "Location permission is required for Bluetooth scanning. Please grant Location permission in settings.");
+        return;
+      }
+
+      // 3. Check Bluetooth Service (Adapter enabled)
+      final isBluetoothEnabled =
+          await _smHealthDevices.permissions.isBluetoothEnabled();
+      if (!isBluetoothEnabled) {
+        _setError(
+            "Bluetooth is disabled. Please enable Bluetooth in your device settings.");
+        return;
+      }
+
+      // 4. Check Location Service (GPS enabled)
+      final isLocationServiceEnabled =
+          await _smHealthDevices.permissions.isLocationServiceEnabled();
+      if (!isLocationServiceEnabled) {
+        _setError(
+            "Location service is disabled. Please enable Location/GPS in your device settings.");
+        return;
+      }
+
+      // 5. Initialize Plugin (if needed)
       await _smHealthDevices.init();
 
-      // 2. Start Flow
+      // 6. All checks passed - Start Flow
       _startMeasurementFlow();
     } catch (e) {
       if (mounted) {
