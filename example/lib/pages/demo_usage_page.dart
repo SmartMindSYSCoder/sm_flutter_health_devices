@@ -455,6 +455,7 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                           },
                           onCancel: () => Navigator.pop(dialogContext),
                           config: const SmDeviceConfig(showAppBar: false),
+                          initBuilder: _buildInit,
                           stateBuilder: _buildState,
                           successBuilder: _buildSuccess,
                           errorBuilder: _buildError,
@@ -472,6 +473,74 @@ class _DemoUsagePageState extends State<DemoUsagePage>
   }
 
   // --- PREMIUM BUILDERS ---
+
+  Widget _buildInit(
+      BuildContext context, VoidCallback onStart, VoidCallback onCancel) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Icon
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.health_and_safety,
+                size: 64,
+                color: Colors.blue.shade600,
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          const Text(
+            "Ready to Measure",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "Press the button below to start scanning for devices",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          const SizedBox(height: 40),
+          ElevatedButton(
+            onPressed: onStart,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+              elevation: 2,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+            ),
+            child: const Text(
+              "Start Scan",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: onCancel,
+            child: const Text("Cancel"),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildState(
       BuildContext context, HealthEventData event, VoidCallback onCancel) {
@@ -565,7 +634,7 @@ class _DemoUsagePageState extends State<DemoUsagePage>
   }
 
   Widget _buildSuccess(BuildContext context, HealthVitalResult result,
-      VoidCallback onSave, VoidCallback onRetry) {
+      VoidCallback onSave, VoidCallback onReset) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       child: Column(
@@ -637,13 +706,13 @@ class _DemoUsagePageState extends State<DemoUsagePage>
             children: [
               Expanded(
                 child: TextButton(
-                  onPressed: onRetry,
+                  onPressed: onReset,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text("Retry"),
+                  child: const Text("Reset"),
                 ),
               ),
               const SizedBox(width: 16),

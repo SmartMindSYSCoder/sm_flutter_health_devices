@@ -8,6 +8,7 @@ import '../../sm_flutter_health_devices.dart';
 /// connecting to and measuring from health devices.
 ///
 /// This widget delegates all UI rendering to the provided builders:
+/// - [initBuilder]: Renders the initial state before starting (optional).
 /// - [stateBuilder]: Renders the active state (Scanning, Connecting, Measuring).
 /// - [successBuilder]: Renders the success state (Result Ready).
 /// - [errorBuilder]: Renders the error state.
@@ -29,6 +30,14 @@ class SmHealthDeviceWidget extends StatefulWidget {
   /// Optional callback for cancellation
   final VoidCallback? onCancel;
 
+  /// Optional builder to customize the initial view before starting measurement.
+  /// [onStart]: Function to call to start the scan and measurement process.
+  /// [onCancel]: Function to call to cancel/exit.
+  /// If not provided, measurement will auto-start based on [config.autoStartScan].
+  final Widget Function(
+          BuildContext context, VoidCallback onStart, VoidCallback onCancel)?
+      initBuilder;
+
   /// Builder to customize the state view (Scanning, Connecting, Measuring).
   /// [onCancel]: Function to call to cancel the measurement.
   final Widget Function(
@@ -37,9 +46,9 @@ class SmHealthDeviceWidget extends StatefulWidget {
 
   /// Builder to customize the success view (Result Ready).
   /// [onSave]: Function to call to save/finalize (triggers onResult and exit).
-  /// [onRetry]: Function to call to restart the measurement.
+  /// [onReset]: Function to call to reset to initial state.
   final Widget Function(BuildContext context, HealthVitalResult result,
-      VoidCallback onSave, VoidCallback onRetry) successBuilder;
+      VoidCallback onSave, VoidCallback onReset) successBuilder;
 
   /// Builder to customize the error view.
   /// [onRetry]: Function to call to retry the measurement.
@@ -68,6 +77,7 @@ class SmHealthDeviceWidget extends StatefulWidget {
     required this.stateBuilder,
     required this.successBuilder,
     required this.errorBuilder,
+    this.initBuilder,
     this.onError,
     this.onCancel,
     this.appBar,
@@ -85,27 +95,36 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   StreamSubscription<HealthEventData>? _subscription;
 
   // State
+  bool _isInInitState = true; // Start in init state
   bool _isInitializing = false;
   bool _isScanning = false;
   bool _isConnecting = false;
   bool _isMeasuring = false;
   bool _hasStopped = false;
+  bool _hasReachedSuccess = false; // Lock success state
   String? _errorMessage;
   HealthEventData? _lastEvent;
 
   @override
   void initState() {
     super.initState();
-    if (widget.config.autoStartScan) {
+    // If no initBuilder provided, use autoStartScan behavior
+    if (widget.initBuilder == null && widget.config.autoStartScan) {
+      _isInInitState = false;
       _initAndStart();
+    } else if (widget.initBuilder == null) {
+      // No initBuilder and no autoStart, go directly to ready state
+      _isInInitState = false;
     }
   }
 
   Future<void> _initAndStart() async {
     setState(() {
+      _isInInitState = false;
       _isInitializing = true;
       _errorMessage = null;
       _hasStopped = false;
+      _hasReachedSuccess = false; // Reset success flag
     });
 
     try {
@@ -133,6 +152,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       _errorMessage = null;
       _lastEvent = null; // Clear previous event on restart
       _hasStopped = false;
+      _hasReachedSuccess = false; // Reset success flag
     });
 
     // Listen to events
@@ -147,14 +167,9 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         _smHealthDevices.readBloodPressure(provider: DeviceProvider.raycome);
       } else if (provider == DeviceProvider.omron) {
         _startOmronFlow();
-      } 
-      
-      else if(provider ==DeviceProvider.accucheck){
-
+      } else if (provider == DeviceProvider.accucheck) {
         _smHealthDevices.readGlucose();
-      }
-      
-      else if (provider == DeviceProvider.fitrus) {
+      } else if (provider == DeviceProvider.fitrus) {
         // Handle Fitrus measurement via unified method
         if (widget.measurementType == MeasurementType.bodyComposition &&
             widget.userProfile != null &&
@@ -174,8 +189,6 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       } else if (provider == DeviceProvider.lepu) {
         _dispatchMeasurementCommand();
       }
-
-
     } catch (e) {
       _setError(e.toString());
     }
@@ -322,12 +335,12 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         break;
       case MeasurementType.weight:
         // if (widget.provider == DeviceProvider.lepu) {
-          _smHealthDevices.readWeight(provider: widget.provider);
+        _smHealthDevices.readWeight(provider: widget.provider);
         // }
         break;
       case MeasurementType.spo2:
         // if (widget.provider == DeviceProvider.lepu) {
-          _smHealthDevices.readSpo2(provider: widget.provider);
+        _smHealthDevices.readSpo2(provider: widget.provider);
         // }
         break;
       case MeasurementType.temperature:
@@ -335,9 +348,6 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
           _smHealthDevices.readTemperature(provider: widget.provider);
         }
         break;
-
-         
-
 
       default:
         _setError(
@@ -353,6 +363,12 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       return;
     }
 
+    // If we've already reached success, ignore all further events
+    // This prevents returning to stateBuilder when device disconnects
+    if (_hasReachedSuccess) {
+      return;
+    }
+
     setState(() {
       _lastEvent = event;
       final state = event.connectionState;
@@ -361,6 +377,13 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       _isConnecting = state == HealthConnectionState.connecting ||
           state == HealthConnectionState.connected;
       _isMeasuring = state == HealthConnectionState.measuring;
+
+      // Check if we've reached success state
+      final isCompleted = event.isCompleted == true ||
+          event.connectionState == HealthConnectionState.completed;
+      if (isCompleted && event.vitalResult != null) {
+        _hasReachedSuccess = true; // Lock in success state
+      }
     });
 
     if (event.hasError) {
@@ -380,6 +403,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       _isScanning = false;
       _isConnecting = false;
       _isMeasuring = false;
+      _hasReachedSuccess = false; // Reset success flag on error
     });
     widget.onError?.call(msg);
   }
@@ -452,6 +476,15 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   }
 
   Widget _buildContent() {
+    // 0. Init State (if initBuilder provided)
+    if (_isInInitState && widget.initBuilder != null) {
+      return widget.initBuilder!(
+        context,
+        _initAndStart, // On Start
+        _handleBackAttempt, // On Cancel
+      );
+    }
+
     // 1. Error State
     if (_errorMessage != null) {
       return widget.errorBuilder(
@@ -472,7 +505,9 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         context,
         _lastEvent!.vitalResult!,
         () => _saveAndExit(_lastEvent!.vitalResult!), // On Save
-        _retryMeasurement, // On Retry
+        widget.initBuilder != null
+            ? _resetToInit
+            : _retryMeasurement, // On Reset/Retry
       );
     }
 
@@ -547,9 +582,24 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     setState(() {
       _lastEvent = null;
       _errorMessage = null;
+      _hasReachedSuccess = false; // Reset success flag
     });
     // Restart flow
     _startMeasurementFlow();
+  }
+
+  void _resetToInit() {
+    setState(() {
+      _isInInitState = true;
+      _lastEvent = null;
+      _errorMessage = null;
+      _isScanning = false;
+      _isConnecting = false;
+      _isMeasuring = false;
+      _hasStopped = false;
+      _hasReachedSuccess = false; // Reset success flag
+    });
+    _subscription?.cancel();
   }
 
   void _saveAndExit(HealthVitalResult result) {
