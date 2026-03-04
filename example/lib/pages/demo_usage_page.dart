@@ -123,7 +123,13 @@ class _DemoUsagePageState extends State<DemoUsagePage>
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => SmHealthSettingsPage.open(context),
+            onPressed: () => SmHealthSettingsPage.open(
+              context,
+              initConfig: const SmHealthInitConfig(
+                fitrusApiKey: _kFitrusApiKey,
+                omronApiKey: _kOmronApiKey,
+              ),
+            ),
             tooltip: 'Settings',
           ),
         ],

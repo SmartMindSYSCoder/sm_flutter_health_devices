@@ -5,17 +5,26 @@ import 'package:sm_omron/sm_omron.dart' as omron;
 
 class SmOmronDevicesPage extends StatefulWidget {
   final SmHealthSettingsStyle style;
+  final SmHealthInitConfig initConfig;
 
   const SmOmronDevicesPage({
     super.key,
     required this.style,
+    this.initConfig = const SmHealthInitConfig(),
   });
 
-  static Future<void> open(BuildContext context, SmHealthSettingsStyle style) {
+  static Future<void> open(
+    BuildContext context, {
+    required SmHealthSettingsStyle style,
+    SmHealthInitConfig initConfig = const SmHealthInitConfig(),
+  }) {
     return Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SmOmronDevicesPage(style: style),
+        builder: (context) => SmOmronDevicesPage(
+          style: style,
+          initConfig: initConfig,
+        ),
       ),
     );
   }
@@ -42,7 +51,12 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
   }
 
   Future<void> _initPlugin() async {
-    await _healthDevices.init();
+    await _healthDevices.init(
+      config: HealthDevicesConfig(
+        fitrusApiKey: widget.initConfig.fitrusApiKey,
+        omronApiKey: widget.initConfig.omronApiKey,
+      ),
+    );
     _loadDevices();
 
     // Listen to connection state changes from Omron

@@ -43,19 +43,27 @@ class SmHealthSettingsStyle {
 /// This is part of the plugin UI and can be used directly in any application.
 class SmHealthSettingsPage extends StatefulWidget {
   final SmHealthSettingsStyle style;
+  final SmHealthInitConfig initConfig;
 
   const SmHealthSettingsPage({
     super.key,
     this.style = const SmHealthSettingsStyle(),
+    this.initConfig = const SmHealthInitConfig(),
   });
 
   /// Static method to easily open the settings page.
-  static Future<void> open(BuildContext context,
-      {SmHealthSettingsStyle style = const SmHealthSettingsStyle()}) {
+  static Future<void> open(
+    BuildContext context, {
+    SmHealthSettingsStyle style = const SmHealthSettingsStyle(),
+    SmHealthInitConfig initConfig = const SmHealthInitConfig(),
+  }) {
     return Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SmHealthSettingsPage(style: style),
+        builder: (context) => SmHealthSettingsPage(
+          style: style,
+          initConfig: initConfig,
+        ),
       ),
     );
   }
@@ -80,7 +88,14 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
   void initState() {
     super.initState();
     // Ensure settings are loaded before first build
-    _healthDevices.init().then((_) {
+    _healthDevices
+        .init(
+      config: HealthDevicesConfig(
+        fitrusApiKey: widget.initConfig.fitrusApiKey,
+        omronApiKey: widget.initConfig.omronApiKey,
+      ),
+    )
+        .then((_) {
       if (mounted) setState(() {});
     });
   }
@@ -285,7 +300,11 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
             ),
             trailing:
                 const Icon(Icons.chevron_right_rounded, color: Colors.white70),
-            onTap: () => SmOmronDevicesPage.open(context, style),
+            onTap: () => SmOmronDevicesPage.open(
+              context,
+              style: style,
+              initConfig: widget.initConfig,
+            ),
           ),
         ),
       ),
