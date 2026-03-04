@@ -58,35 +58,24 @@ class SmHealthDevices {
   late final raycome.SmRaycome _raycome = _initRaycome();
 
   fitrus.SmFitrus _initFitrus() {
-    debugPrint('SmHealthDevices: Instantiating Fitrus plugin...');
-    debugPrint(
-        'SmHealthDevices: Fitrus instantiation stack trace:\n${StackTrace.current}');
     return fitrus.SmFitrus();
   }
 
   lepu.SmLepu _initLepu() {
-    debugPrint('SmHealthDevices: Instantiating Lepu plugin...');
-    debugPrint(
-        'SmHealthDevices: Lepu instantiation stack trace:\n${StackTrace.current}');
     return lepu.SmLepu();
   }
 
   omron.SMOmron _initOmron() {
-    debugPrint('SmHealthDevices: Instantiating Omron plugin...');
-    debugPrint(
-        'SmHealthDevices: Omron instantiation stack trace:\n${StackTrace.current}');
     return omron.SMOmron();
   }
 
   raycome.SmRaycome _initRaycome() {
-    debugPrint('SmHealthDevices: Instantiating Raycome plugin...');
     return raycome.SmRaycome();
   }
 
   late final AccuCheckService _accuCheck = _initAccuCheck();
 
   AccuCheckService _initAccuCheck() {
-    debugPrint('SmHealthDevices: Instantiating AccuCheck service...');
     return AccuCheckService();
   }
 
@@ -120,7 +109,6 @@ class SmHealthDevices {
 
   Future<bool> init({HealthDevicesConfig? config}) async {
     if (_isInitialized) return true;
-    debugPrint('SmHealthDevices: init called with config: $config');
 
     try {
       // Ensure event controller is ready
@@ -133,7 +121,6 @@ class SmHealthDevices {
       await settingsManager.init();
 
       _isInitialized = true;
-      debugPrint('SmHealthDevices: Core system initialized successfully');
       return true;
     } catch (e) {
       debugPrint('SmHealthDevices: Initialization failed - $e');
