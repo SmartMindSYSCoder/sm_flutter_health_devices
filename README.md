@@ -147,7 +147,6 @@ The `initBuilder` provides a clean initial state where users can prepare before 
 ```dart
 SmHealthDeviceWidget(
   measurementType: MeasurementType.bloodPressure,
-  provider: DeviceProvider.omron,
   onResult: (result) {
     print("Systolic: ${result.systolic}");
     print("Diastolic: ${result.diastolic}");
@@ -262,7 +261,6 @@ If you don't provide an `initBuilder`, the widget will auto-start based on `conf
 ```dart
 SmHealthDeviceWidget(
   measurementType: MeasurementType.bloodPressure,
-  provider: DeviceProvider.lepu,
   onResult: (result) => print("Result: $result"),
   initConfig: SmHealthInitConfig(
     autoStartScan: true, // Starts immediately
@@ -298,6 +296,17 @@ SmHealthDeviceWidget(
   },
 )
 ```
+
+---
+
+### 🚀 The Power of `autoSave`
+The `SmHealthInitConfig` includes an `autoSave` feature that significantly streamlines the user experience:
+
+- **Seamless Completion**: Once a measurement is successfully finished, the `onResult` callback is triggered automatically.
+- **Reduced Friction**: Users don't need to manually click a "Save" button, making the process faster and more intuitive.
+- **State Persistence**: Even with `autoSave: true`, you can still use the `successBuilder` to show the final results and a "Done" or "Reset" button for navigation.
+
+**Expert Tip**: We recommend setting `autoSave: true` for most production applications to minimize user effort.
 
 ---
 
@@ -430,7 +439,6 @@ SmHealthUiConfig(
 ```dart
 SmHealthDeviceWidget(
   measurementType: MeasurementType.bodyComposition,
-  provider: DeviceProvider.fitrus,
   initConfig: SmHealthInitConfig(
     fitrusApiKey: 'YOUR_API_KEY',
     userProfile: SmUserProfile(

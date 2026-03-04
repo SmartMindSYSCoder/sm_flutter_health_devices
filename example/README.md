@@ -1,16 +1,32 @@
 # sm_flutter_health_devices_example
 
-Demonstrates how to use the sm_flutter_health_devices plugin.
+This example demonstrates how to integrate the unified health device plugin into a Flutter application.
 
-## Getting Started
+## 🚀 Expert Setup
 
-This project is a starting point for a Flutter application.
+### 1. Requirements
+Ensure you have the following API keys from your providers:
+- **Omron**: Required for Bluetooth device pairing and data synchronization.
+- **Fitrus**: Required for body composition analysis.
 
-A few resources to get you started if this is your first Flutter project:
+### 2. Configuration
+The example app demonstrates using the `SmHealthInitConfig` to pass these keys securely:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```dart
+SmHealthDeviceWidget(
+  measurementType: MeasurementType.bloodPressure,
+  initConfig: SmHealthInitConfig(
+    omronApiKey: 'YOUR_OMRON_API_KEY',
+    autoSave: true,
+  ),
+  // ... builders
+)
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 3. Automated Flow
+This version of the plugin supports:
+- **Provider-less Initiation**: No need to pass a specific `provider`. The system automatically resolves the "Preferred Provider" from the settings.
+- **Auto-Save**: Automatically triggers the `onResult` callback upon successful measurement to reduce user friction.
+
+---
+For full documentation, visit the [main README](../README.md).
