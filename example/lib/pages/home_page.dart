@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:sm_flutter_health_devices/sm_flutter_health_devices.dart';
 import '../controllers/health_controller.dart';
 import '../dialogs/dialogs.dart';
-import '../dialogs/dialogs.dart';
 import '../widgets/widgets.dart';
 import 'demo_usage_page.dart';
 
@@ -95,6 +94,30 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
         backgroundColor: Colors.transparent,
         actions: [
+          IconButton(
+            icon: Icon(Icons.settings_outlined, color: colors.primary),
+            tooltip: 'Measurement Settings',
+            onPressed: () {
+              final theme = Theme.of(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SmHealthSettingsPage(
+                    style: SmHealthSettingsStyle(
+                      primaryColor: theme.primaryColor,
+                      cardShape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: theme.dividerColor.withOpacity(0.1),
+                        ),
+                      ),
+                      backgroundColor: theme.scaffoldBackgroundColor,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.info_outline, color: colors.primary),
             tooltip: 'View Widget Demo',
@@ -418,43 +441,32 @@ class _HomePageState extends State<HomePage> {
         _startGlucose();
         break;
       default:
-        _showProviderSelection(type);
+        _startMeasurement(type, null);
     }
-  }
-
-  void _showProviderSelection(MeasurementType type) {
-    final providers = type.supportedProviders;
-
-    // If only one provider, start directly
-    if (providers.length == 1) {
-      _startMeasurement(type, providers.first);
-      return;
-    }
-
-    ProviderBottomSheet.show(
-      context,
-      measurementType: type,
-      onProviderSelected: (provider) => _startMeasurement(type, provider),
-    );
   }
 
   Future<void> _startMeasurement(
-      MeasurementType type, DeviceProvider provider) async {
+      MeasurementType type, DeviceProvider? provider) async {
+    final activeProvider = provider ??
+        _controller.healthDevices.settingsManager.getPreferredProvider(type);
+
     setState(() {
       _activeMeasurement = type;
       _isMeasuring = true; // Show status card
     });
 
     try {
-      if (provider == DeviceProvider.omron) {
+      if (activeProvider == DeviceProvider.omron) {
         await _handleOmronMeasurement(type);
       } else {
-        await _controller.startMeasurement(type, provider);
+        await _controller.startMeasurement(type, activeProvider);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
       setState(() {
         _isMeasuring = false;
         _activeMeasurement = null;

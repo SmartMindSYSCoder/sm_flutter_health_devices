@@ -113,7 +113,7 @@ enum MeasurementType {
       case MeasurementType.spo2:
         return [DeviceProvider.omron, DeviceProvider.lepu];
       case MeasurementType.bodyComposition:
-        return [DeviceProvider.fitrus];
+        return [DeviceProvider.fitrus, DeviceProvider.omron];
       case MeasurementType.activity:
         return [DeviceProvider.omron];
       case MeasurementType.wheeze:

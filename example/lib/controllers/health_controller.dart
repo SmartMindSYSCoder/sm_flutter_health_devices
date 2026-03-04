@@ -73,41 +73,44 @@ class HealthController extends ChangeNotifier {
 
   /// Initialize Fitrus for body composition
 
-
   /// Start a measurement
   Future<HealthVitalResult?> startMeasurement(
-    MeasurementType type,
-    DeviceProvider provider,
-  ) async {
+    MeasurementType type, [
+    DeviceProvider? provider,
+  ]) async {
+    final activeProvider =
+        provider ?? _healthDevices.settingsManager.getPreferredProvider(type);
+
     _events.clear(); // Clear previous session events to reset UI state
     _statusMessage = 'Starting ${type.displayName}...';
     _lastResult = null;
     _activeMeasurementType = type;
-    _activeProvider = provider;
+    _activeProvider = activeProvider;
     notifyListeners();
 
     // Check for specific permissions
     if (type == MeasurementType.temperature &&
-        provider == DeviceProvider.omron) {
+        activeProvider == DeviceProvider.omron) {
       _permissions = await _healthDevices.permissions.requestPermissionsFor(
         type,
-        provider: provider,
+        provider: activeProvider,
       );
     }
 
     HealthVitalResult? result;
     switch (type) {
       case MeasurementType.weight:
-        result = await _healthDevices.readWeight(provider: provider);
+        result = await _healthDevices.readWeight(provider: activeProvider);
         break;
       case MeasurementType.bloodPressure:
-        result = await _healthDevices.readBloodPressure(provider: provider);
+        result =
+            await _healthDevices.readBloodPressure(provider: activeProvider);
         break;
       case MeasurementType.temperature:
-        result = await _healthDevices.readTemperature(provider: provider);
+        result = await _healthDevices.readTemperature(provider: activeProvider);
         break;
       case MeasurementType.spo2:
-        result = await _healthDevices.readSpo2(provider: provider);
+        result = await _healthDevices.readSpo2(provider: activeProvider);
         break;
       default:
         break;
@@ -247,15 +250,19 @@ class HealthController extends ChangeNotifier {
   }
 
   /// Start glucose measurement
-  Future<HealthVitalResult?> startGlucose() async {
+  Future<HealthVitalResult?> startGlucose([DeviceProvider? provider]) async {
+    final activeProvider = provider ??
+        _healthDevices.settingsManager
+            .getPreferredProvider(MeasurementType.glucometer);
+
     _events.clear(); // Clear previous session events
-    _statusMessage = 'Scanning for AccuChek...';
+    _statusMessage = 'Scanning for ${activeProvider.displayName}...';
     _lastResult = null;
     _activeMeasurementType = MeasurementType.glucometer;
-    _activeProvider = DeviceProvider.accucheck;
+    _activeProvider = activeProvider;
     notifyListeners();
 
-    final result = await _healthDevices.readGlucose();
+    final result = await _healthDevices.readGlucose(provider: activeProvider);
 
     if (result != null && result.hasData) {
       _lastResult = result;

@@ -31,6 +31,24 @@ A unified Flutter plugin for health devices that wraps **sm_fitrus**, **sm_lepu*
 | **Body Composition** | - | - | ✅ | - | - |
 | **Activity** | ✅ | - | - | - | - |
 | **Blood Glucose** | - | - | - | ✅ | - |
+ 
+ ---
+ 
+## 🛡️ Expert Integration Guide: Omron Workflow
+
+To ensure a seamless measurement experience with Omron devices, follow this specific workflow:
+
+1. **Initial Setup (Settings)**:
+   - Navigation: Open the `SmHealthSettingsPage` within your app.
+   - **Add & Pair**: Search for your Omron device and complete the pairing process.
+   - **Provider Selection**: Ensure that "Omron" is selected as the **Preferred Provider** for the specific measurement type (e.g., Blood Pressure).
+
+2. **Measurement Session**:
+   - Use `SmHealthDeviceWidget` with `DeviceProvider.omron`.
+   - The system will automatically use your paired device and preferred settings.
+
+3. **API Key Requirement**:
+   - The Omron SDK requires a valid API key for initialization. Pass this via `SmHealthInitConfig` when using the `SmHealthDeviceWidget`.
 
 ---
 
@@ -135,6 +153,17 @@ SmHealthDeviceWidget(
     print("Diastolic: ${result.diastolic}");
   },
   
+  // Expert Configuration
+  initConfig: SmHealthInitConfig(
+    omronApiKey: 'YOUR_OMRON_API_KEY', // Required for Omron SDK
+    autoSave: true,
+  ),
+  
+  uiConfig: SmHealthUiConfig(
+    showAppBar: true,
+    title: "Blood Pressure",
+  ),
+
   // 0. Initial State (Optional but Recommended)
   initBuilder: (context, onStart, onCancel) {
     return Column(
@@ -235,7 +264,7 @@ SmHealthDeviceWidget(
   measurementType: MeasurementType.bloodPressure,
   provider: DeviceProvider.lepu,
   onResult: (result) => print("Result: $result"),
-  config: SmDeviceConfig(
+  initConfig: SmHealthInitConfig(
     autoStartScan: true, // Starts immediately
   ),
   stateBuilder: (context, event, onCancel) {
@@ -356,25 +385,41 @@ Widget Function(
 
 ---
 
-### ⚙️ Configuration Options
+### ⚙️ Configuration Models
+`SmHealthDeviceWidget` uses two specialized configuration objects to separate UI shell styling from session initialization logic.
 
+#### SmHealthInitConfig (Logic & Auth)
 ```dart
-SmDeviceConfig(
+SmHealthInitConfig(
   // Auto-start behavior (only used if initBuilder is null)
   autoStartScan: true,
   
-  // UI customization (optional)
+  // API Keys (Required for SDK initialization)
+  omronApiKey: '...',
+  fitrusApiKey: '...',
+  
+  // Measurement profile
+  userProfile: SmUserProfile(...),
+  
+  // Behavior
+  autoSave: true,
+)
+```
+
+#### SmHealthUiConfig (Shell Styling)
+```dart
+SmHealthUiConfig(
   showAppBar: true,
-  title: "Blood Pressure Measurement",
+  title: "Health Measurement",
   backgroundColor: Colors.white,
+  textColor: Colors.black,
   
   // Animation
   animationDuration: Duration(milliseconds: 300),
   
-  // Default messages
-  scanningText: "Scanning for devices...",
+  // State Labels
+  scanningText: "Searching...",
   connectingText: "Connecting...",
-  measuringText: "Measuring...",
 )
 ```
 
@@ -386,12 +431,14 @@ SmDeviceConfig(
 SmHealthDeviceWidget(
   measurementType: MeasurementType.bodyComposition,
   provider: DeviceProvider.fitrus,
-  fitrusApiKey: 'YOUR_API_KEY',
-  userProfile: SmUserProfile(
-    heightCm: 175,
-    weightKg: 70,
-    gender: Gender.male,
-    birthDate: "19900101",
+  initConfig: SmHealthInitConfig(
+    fitrusApiKey: 'YOUR_API_KEY',
+    userProfile: SmUserProfile(
+      heightCm: 175,
+      weightKg: 70,
+      gender: Gender.male,
+      birthDate: "19900101",
+    ),
   ),
   onResult: (result) {
     print("Body Fat: ${result.fatPercentage}%");
@@ -859,6 +906,13 @@ await healthDevices.dispose();
 ## 📝 Changelog
 
 ### Latest Updates
+
+#### v1.2.0 - Expert Integration & Security
+- ✨ Added support for dynamic Omron API key initialization.
+- ✨ Renamed `SmHealthActionConfig` to `SmHealthInitConfig` for better semantic clarity.
+- ✨ Improved `SmHealthDeviceWidget` to support split `initConfig` and `uiConfig`.
+- 📚 Enhanced documentation with "Expert Integration Guide" for Omron workflows.
+- 🔒 API keys are now required at the initialization level for improved SDK safety.
 
 #### v1.1.0 - InitBuilder Feature
 - ✨ Added optional `initBuilder` parameter for custom initial UI

@@ -16,12 +16,10 @@ class SmHealthDeviceWidget extends StatefulWidget {
   /// The type of measurement to perform
   final MeasurementType measurementType;
 
-  /// Required provider
-  final DeviceProvider provider;
-
   /// Callback when a measurement is successfully completed
   /// Note: This is NOT called automatically on success. You must call it
-  /// manually in your [successBuilder] (e.g. via a "Save" button).
+  /// manually in your [successBuilder] (e.g. via a "Save" button),
+  /// UNLESS [actionConfig.autoSave] is true.
   final Function(HealthVitalResult) onResult;
 
   /// Optional callback for errors
@@ -33,7 +31,7 @@ class SmHealthDeviceWidget extends StatefulWidget {
   /// Optional builder to customize the initial view before starting measurement.
   /// [onStart]: Function to call to start the scan and measurement process.
   /// [onCancel]: Function to call to cancel/exit.
-  /// If not provided, measurement will auto-start based on [config.autoStartScan].
+  /// If not provided, measurement will auto-start based on [actionConfig.autoStartScan].
   final Widget Function(
           BuildContext context, VoidCallback onStart, VoidCallback onCancel)?
       initBuilder;
@@ -59,20 +57,15 @@ class SmHealthDeviceWidget extends StatefulWidget {
   /// Optional custom AppBar. If provided, overrides the default AppBar.
   final PreferredSizeWidget? appBar;
 
-  /// Configuration for behavior (autoStartScan, animationDuration).
-  /// Note: Styling properties in [SmDeviceConfig] are ignored as UI is fully custom.
-  final SmDeviceConfig config;
+  /// Configuration for UI styling (colors, strings, animations).
+  final SmHealthUiConfig uiConfig;
 
-  /// Optional user profile for specialized measurements (e.g. Fitrus body composition)
-  final SmUserProfile? userProfile;
-
-  /// Optional API Key for Fitrus provider
-  final String? fitrusApiKey;
+  /// Configuration for behavior and specialized requirements (autoSave, fitrusApiKey, userProfile).
+  final SmHealthInitConfig initConfig;
 
   const SmHealthDeviceWidget({
     Key? key,
     required this.measurementType,
-    required this.provider,
     required this.onResult,
     required this.stateBuilder,
     required this.successBuilder,
@@ -81,9 +74,8 @@ class SmHealthDeviceWidget extends StatefulWidget {
     this.onError,
     this.onCancel,
     this.appBar,
-    this.config = const SmDeviceConfig(),
-    this.userProfile,
-    this.fitrusApiKey,
+    this.uiConfig = const SmHealthUiConfig(),
+    this.initConfig = const SmHealthInitConfig(),
   }) : super(key: key);
 
   @override
@@ -105,11 +97,18 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   String? _errorMessage;
   HealthEventData? _lastEvent;
 
+  // Resolved provider
+  late DeviceProvider _activeProvider;
+
   @override
   void initState() {
     super.initState();
+    // Resolve provider immediately to avoid LateInitializationError in build()
+    _resolveProvider();
+
     // If no initBuilder provided, use autoStartScan behavior
-    if (widget.initBuilder == null && widget.config.autoStartScan) {
+    if (widget.initBuilder == null && widget.initConfig.autoStartScan) {
+      debugPrint('SmHealthDeviceWidget: No initBuilder, auto-starting...');
       _isInInitState = false;
       _initAndStart();
     } else if (widget.initBuilder == null) {
@@ -118,7 +117,21 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     }
   }
 
+  @override
+  void didUpdateWidget(covariant SmHealthDeviceWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.measurementType != widget.measurementType) {
+      _resolveProvider();
+    }
+  }
+
+  void _resolveProvider() {
+    _activeProvider = _smHealthDevices.settingsManager
+        .getPreferredProvider(widget.measurementType);
+  }
+
   Future<void> _initAndStart() async {
+    debugPrint('SmHealthDeviceWidget: _initAndStart called');
     setState(() {
       _isInInitState = false;
       _isInitializing = true;
@@ -128,6 +141,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     });
 
     try {
+      debugPrint('SmHealthDeviceWidget: Checking permissions...');
       // 1. Check Bluetooth Permission
       final hasBluetoothPermission =
           await _smHealthDevices.permissions.checkBluetoothPermissions();
@@ -164,8 +178,21 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         return;
       }
 
+      // 2. Resolve parameters from initConfig
+      final fitrusApiKey = widget.initConfig.fitrusApiKey;
+      final omronApiKey = widget.initConfig.omronApiKey;
       // 5. Initialize Plugin (if needed)
-      await _smHealthDevices.init();
+      final initSuccess = await _smHealthDevices.init(
+        config: HealthDevicesConfig(
+          fitrusApiKey: fitrusApiKey,
+          omronApiKey: omronApiKey,
+        ),
+      );
+      if (!initSuccess) {
+        _setError(
+            "Failed to initialize health device system. Please restart the app.");
+        return;
+      }
 
       // 6. All checks passed - Start Flow
       _startMeasurementFlow();
@@ -191,11 +218,17 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       _hasReachedSuccess = false; // Reset success flag
     });
 
+    // Ensure provider is resolved
+    _resolveProvider();
+
+    debugPrint(
+        'SmHealthDeviceWidget: Starting flow for ${widget.measurementType} using provider: $_activeProvider');
+
     // Listen to events
     _subscription?.cancel();
     _subscription = _smHealthDevices.getEvents().listen(_onEvent);
 
-    final provider = widget.provider;
+    final provider = _activeProvider;
 
     // Call specific start method
     try {
@@ -208,14 +241,14 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       } else if (provider == DeviceProvider.fitrus) {
         // Handle Fitrus measurement via unified method
         if (widget.measurementType == MeasurementType.bodyComposition &&
-            widget.userProfile != null &&
-            widget.fitrusApiKey != null) {
+            widget.initConfig.userProfile != null &&
+            widget.initConfig.fitrusApiKey != null) {
           _smHealthDevices.startBodyComposition(
-            apiKey: widget.fitrusApiKey!,
-            heightCm: widget.userProfile!.heightCm,
-            weightKg: widget.userProfile!.weightKg,
-            gender: widget.userProfile!.gender,
-            birthDate: widget.userProfile!.birthDate,
+            apiKey: widget.initConfig.fitrusApiKey!,
+            heightCm: widget.initConfig.userProfile!.heightCm,
+            weightKg: widget.initConfig.userProfile!.weightKg,
+            gender: widget.initConfig.userProfile!.gender,
+            birthDate: widget.initConfig.userProfile!.birthDate,
           );
         } else {
           _errorMessage =
@@ -367,21 +400,18 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   void _dispatchMeasurementCommand() {
     switch (widget.measurementType) {
       case MeasurementType.bloodPressure:
-        _smHealthDevices.readBloodPressure(provider: widget.provider);
+        _smHealthDevices.readBloodPressure(provider: _activeProvider);
         break;
       case MeasurementType.weight:
-        // if (widget.provider == DeviceProvider.lepu) {
-        _smHealthDevices.readWeight(provider: widget.provider);
-        // }
+        _smHealthDevices.readWeight(provider: _activeProvider);
         break;
       case MeasurementType.spo2:
-        // if (widget.provider == DeviceProvider.lepu) {
-        _smHealthDevices.readSpo2(provider: widget.provider);
-        // }
+        _smHealthDevices.readSpo2(provider: _activeProvider);
         break;
       case MeasurementType.temperature:
-        if (widget.provider == DeviceProvider.lepu) {
-          _smHealthDevices.readTemperature(provider: widget.provider);
+        if (_activeProvider == DeviceProvider.lepu ||
+            _activeProvider == DeviceProvider.omron) {
+          _smHealthDevices.readTemperature(provider: _activeProvider);
         }
         break;
 
@@ -395,8 +425,23 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     if (!mounted) return;
 
     // Filter by provider
-    if (event.provider != widget.provider) {
+    if (event.provider != _activeProvider) {
       return;
+    }
+
+    debugPrint(
+        'SmHealthDeviceWidget: Received event from ${event.provider} - State: ${event.connectionState}, HasError: ${event.hasError}, Msg: ${event.message}');
+
+    if (event.hasError) {
+      _setError(event.message);
+      return;
+    }
+
+    // Clear any previous error if we receive a valid non-error event
+    if (_errorMessage != null) {
+      setState(() {
+        _errorMessage = null;
+      });
     }
 
     // If we've already reached success, ignore all further events
@@ -409,6 +454,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       _lastEvent = event;
       final state = event.connectionState;
 
+      _isInitializing = false;
       _isScanning = state == HealthConnectionState.scanning;
       _isConnecting = state == HealthConnectionState.connecting ||
           state == HealthConnectionState.connected;
@@ -419,6 +465,14 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
           event.connectionState == HealthConnectionState.completed;
       if (isCompleted && event.vitalResult != null) {
         _hasReachedSuccess = true; // Lock in success state
+
+        // Auto-save if configured
+        if (widget.initConfig.autoSave) {
+          debugPrint('SmHealthDeviceWidget: Auto-save enabled, exiting...');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _saveAndExit(event.vitalResult!);
+          });
+        }
       }
     });
 
@@ -457,7 +511,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
 
     try {
       _smHealthDevices.stopMeasurement(
-        provider: widget.provider,
+        provider: _activeProvider,
         measurementType: widget.measurementType,
       );
     } catch (e) {
@@ -475,27 +529,27 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         _handleBackAttempt();
       },
       child: AnimatedSwitcher(
-        duration: widget.config.animationDuration,
+        duration: widget.uiConfig.animationDuration,
         child: _buildContent(),
       ),
     );
 
-    if (widget.appBar != null || widget.config.showAppBar) {
+    if (widget.appBar != null || widget.uiConfig.showAppBar) {
       return Scaffold(
-        backgroundColor: widget.config.backgroundColor ??
+        backgroundColor: widget.uiConfig.backgroundColor ??
             Theme.of(context).scaffoldBackgroundColor,
         appBar: widget.appBar ??
             AppBar(
               title: Text(
-                widget.config.title ?? widget.measurementType.displayName,
-                style: widget.config.titleTextStyle,
+                widget.uiConfig.title ?? widget.measurementType.displayName,
+                style: widget.uiConfig.titleTextStyle,
               ),
               backgroundColor: Colors.transparent,
               elevation: 0,
               centerTitle: true,
               leading: IconButton(
                 icon: Icon(Icons.arrow_back,
-                    color: widget.config.textColor ?? Colors.black),
+                    color: widget.uiConfig.textColor ?? Colors.black),
                 onPressed: _handleBackAttempt,
               ),
             ),
@@ -504,7 +558,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     } else {
       return SizedBox(
         child: ColoredBox(
-            color: widget.config.backgroundColor ??
+            color: widget.uiConfig.backgroundColor ??
                 Theme.of(context).scaffoldBackgroundColor,
             child: content),
       );
@@ -557,9 +611,9 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
                     ? HealthConnectionState.connecting
                     : HealthConnectionState.disconnected,
             message: _isScanning
-                ? widget.config.scanningText
-                : widget.config.connectingText,
-            provider: widget.provider);
+                ? widget.uiConfig.scanningText
+                : widget.uiConfig.connectingText,
+            provider: _activeProvider);
 
     return widget.stateBuilder(
       context,

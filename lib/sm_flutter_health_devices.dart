@@ -25,5 +25,7 @@ export 'src/adapters/omron_adapter.dart';
 export 'package:sm_omron/sm_omron.dart' hide Gender, TemperatureUnit;
 
 // UI Components
-export 'src/ui/sm_device_config.dart';
+export 'src/ui/sm_health_ui_config.dart';
+export 'src/ui/sm_health_init_config.dart';
 export 'src/ui/sm_health_device_widget.dart';
+export 'src/ui/sm_health_settings_page.dart';

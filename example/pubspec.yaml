@@ -17,6 +17,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
 
+# Using remote versions for all health plugins
+
 flutter:
   uses-material-design: true
 

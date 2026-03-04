@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sm_fitrus/sm_fitrus.dart' as fitrus;
-import 'package:sm_fitrus/fitrus_model.dart' as fitrus;
 import 'package:sm_lepu/sm_lepu.dart' as lepu;
 import 'package:sm_omron/sm_omron.dart' as omron;
 import 'package:sm_raycome/sm_raycome.dart' as raycome;
@@ -14,6 +13,7 @@ import 'adapters/lepu_adapter.dart';
 import 'adapters/omron_adapter.dart';
 import 'adapters/raycome_adapter.dart';
 import 'services/accu_check_service.dart';
+import 'services/settings_manager.dart';
 import 'models/enums.dart';
 import 'models/health_event_data.dart';
 import 'models/health_vital_result.dart';
@@ -32,8 +32,12 @@ class HealthDevicesConfig {
   /// API key for Fitrus (required for body composition)
   final String? fitrusApiKey;
 
+  /// API key for Omron (required for SDK initialization)
+  final String? omronApiKey;
+
   const HealthDevicesConfig({
     this.fitrusApiKey,
+    this.omronApiKey,
   });
 }
 
@@ -89,6 +93,9 @@ class SmHealthDevices {
   /// Permission manager instance
   final HealthPermissionManager permissions = HealthPermissionManager();
 
+  /// Settings manager instance
+  final SettingsManager settingsManager = SettingsManager();
+
   // Stream controllers
   StreamController<HealthEventData>? _eventController;
   StreamSubscription? _lepuSubscription;
@@ -100,6 +107,7 @@ class SmHealthDevices {
   bool _isInitialized = false;
   bool _isFitrusInitialized = false;
   bool _isFitrusMeasuring = false; // Mutex to prevent concurrent measurements
+  // Fitrus state tracking
   String? _fitrusApiKey;
   HealthConnectionState _lastFitrusState = HealthConnectionState.disconnected;
 
@@ -111,6 +119,7 @@ class SmHealthDevices {
   // ============================================================
 
   Future<bool> init({HealthDevicesConfig? config}) async {
+    if (_isInitialized) return true;
     debugPrint('SmHealthDevices: init called with config: $config');
 
     try {
@@ -118,7 +127,10 @@ class SmHealthDevices {
       _eventController ??= StreamController<HealthEventData>.broadcast();
 
       // Initialize Omron storage (critical for saving/pairing)
-      await _omron.initialize();
+      await _omron.initialize(apiKey: config?.omronApiKey);
+
+      // Initialize Settings
+      await settingsManager.init();
 
       _isInitialized = true;
       debugPrint('SmHealthDevices: Core system initialized successfully');
@@ -158,8 +170,11 @@ class SmHealthDevices {
     debugPrint('SmHealthDevices: Starting Lepu subscription...');
     _lepuSubscription = _lepu.getEvents().listen(
       (lepuEvent) {
-        debugPrint('SmHealthDevices: Lepu Event - ${lepuEvent.deviceType}');
+        debugPrint(
+            'SmHealthDevices: Raw Lepu Event - state: ${lepuEvent.state}, type: ${lepuEvent.deviceType}');
         final healthEvent = LepuAdapter.toHealthEvent(lepuEvent);
+        debugPrint(
+            'SmHealthDevices: Broadcasting Lepu HealthEvent - state: ${healthEvent.connectionState}');
         _eventController?.add(healthEvent);
       },
       onError: (error) {
@@ -262,21 +277,25 @@ class SmHealthDevices {
 
   /// Read weight measurement
   ///
-  /// [provider] - Device provider (omron or lepu)
+  /// [provider] - Optional: Device provider. If null, uses setting from SettingsManager.
   /// [omronDevice] - Required for Omron: the saved ScannedDevice
   Future<HealthVitalResult?> readWeight({
-    required DeviceProvider provider,
+    DeviceProvider? provider,
     omron.ScannedDevice? omronDevice,
   }) async {
-    if (!_validateProvider(provider, MeasurementType.weight)) {
+    final activeProvider = provider ??
+        settingsManager.getPreferredProvider(MeasurementType.weight);
+
+    if (!_validateProvider(activeProvider, MeasurementType.weight)) {
       return HealthVitalResult.error(
-        provider: provider,
+        provider: activeProvider,
         measurementType: MeasurementType.weight,
-        message: 'Provider ${provider.displayName} does not support weight',
+        message:
+            'Provider ${activeProvider.displayName} does not support weight',
       );
     }
 
-    switch (provider) {
+    switch (activeProvider) {
       case DeviceProvider.lepu:
         return await _readLepuWeight();
       case DeviceProvider.omron:
@@ -357,22 +376,25 @@ class SmHealthDevices {
 
   /// Read blood pressure measurement
   ///
-  /// [provider] - Device provider (omron, lepu, or raycome)
+  /// [provider] - Optional: Device provider. If null, uses setting from SettingsManager.
   /// [omronDevice] - Required for Omron: the saved ScannedDevice
   Future<HealthVitalResult?> readBloodPressure({
-    required DeviceProvider provider,
+    DeviceProvider? provider,
     omron.ScannedDevice? omronDevice,
   }) async {
-    if (!_validateProvider(provider, MeasurementType.bloodPressure)) {
+    final activeProvider = provider ??
+        settingsManager.getPreferredProvider(MeasurementType.bloodPressure);
+
+    if (!_validateProvider(activeProvider, MeasurementType.bloodPressure)) {
       return HealthVitalResult.error(
-        provider: provider,
+        provider: activeProvider,
         measurementType: MeasurementType.bloodPressure,
         message:
-            'Provider ${provider.displayName} does not support blood pressure',
+            'Provider ${activeProvider.displayName} does not support blood pressure',
       );
     }
 
-    switch (provider) {
+    switch (activeProvider) {
       case DeviceProvider.lepu:
         return await _readLepuBloodPressure();
       case DeviceProvider.omron:
@@ -543,20 +565,23 @@ class SmHealthDevices {
 
   /// Read temperature measurement
   ///
-  /// [provider] - Device provider (omron or lepu)
+  /// [provider] - Optional: Device provider. If null, uses setting from SettingsManager.
   Future<HealthVitalResult?> readTemperature({
-    required DeviceProvider provider,
+    DeviceProvider? provider,
   }) async {
-    if (!_validateProvider(provider, MeasurementType.temperature)) {
+    final activeProvider = provider ??
+        settingsManager.getPreferredProvider(MeasurementType.temperature);
+
+    if (!_validateProvider(activeProvider, MeasurementType.temperature)) {
       return HealthVitalResult.error(
-        provider: provider,
+        provider: activeProvider,
         measurementType: MeasurementType.temperature,
         message:
-            'Provider ${provider.displayName} does not support temperature',
+            'Provider ${activeProvider.displayName} does not support temperature',
       );
     }
 
-    switch (provider) {
+    switch (activeProvider) {
       case DeviceProvider.lepu:
         return await _readLepuTemperature();
       case DeviceProvider.omron:
@@ -628,21 +653,24 @@ class SmHealthDevices {
 
   /// Read SpO2 (blood oxygen) measurement
   ///
-  /// [provider] - Device provider (omron or lepu)
+  /// [provider] - Optional: Device provider. If null, uses setting from SettingsManager.
   /// [omronDevice] - Required for Omron: the saved ScannedDevice
   Future<HealthVitalResult?> readSpo2({
-    required DeviceProvider provider,
+    DeviceProvider? provider,
     omron.ScannedDevice? omronDevice,
   }) async {
-    if (!_validateProvider(provider, MeasurementType.spo2)) {
+    final activeProvider =
+        provider ?? settingsManager.getPreferredProvider(MeasurementType.spo2);
+
+    if (!_validateProvider(activeProvider, MeasurementType.spo2)) {
       return HealthVitalResult.error(
-        provider: provider,
+        provider: activeProvider,
         measurementType: MeasurementType.spo2,
-        message: 'Provider ${provider.displayName} does not support SpO2',
+        message: 'Provider ${activeProvider.displayName} does not support SpO2',
       );
     }
 
-    switch (provider) {
+    switch (activeProvider) {
       case DeviceProvider.lepu:
         return await _readLepuSpo2();
       case DeviceProvider.omron:
@@ -845,10 +873,26 @@ class SmHealthDevices {
   /// Scans for AccuChek device, connects, and reads the last glucose record.
   /// Returns null if no device found or no records available.
   Future<HealthVitalResult?> readGlucose({
+    DeviceProvider? provider,
     Duration scanTimeout = const Duration(seconds: 15),
     Duration connectTimeout = const Duration(seconds: 20),
     Duration readTimeout = const Duration(seconds: 15),
   }) async {
+    final activeProvider = provider ??
+        settingsManager.getPreferredProvider(MeasurementType.glucometer);
+
+    if (!_validateProvider(activeProvider, MeasurementType.glucometer)) {
+      return HealthVitalResult.error(
+        provider: activeProvider,
+        measurementType: MeasurementType.glucometer,
+        message:
+            'Provider ${activeProvider.displayName} does not support glucose',
+      );
+    }
+
+    if (activeProvider != DeviceProvider.accucheck) {
+      return null;
+    }
     // Listener for detailed logs to push to the unified event stream for UI status
     final logSub = _accuCheck.logs.listen((logMsg) {
       final lowerMsg = logMsg.toLowerCase();

@@ -14,6 +14,7 @@ class _DemoUsagePageState extends State<DemoUsagePage>
     with WidgetsBindingObserver {
   static const String _kFitrusApiKey =
       'vrmCquCRjqTKGQNt3b9pEYy6NhjOL45Mi3d56I16RGTuCAeDNXW53kDaJGn7KUii5SAnHAdtcNoIlnJUk5M5HIj3mJpKAzsIIDilz0bKwdIekWot5X1KyCBMUXBGmICS';
+  static const String _kOmronApiKey = 'F8C4D353-1309-41A4-A190-34C1101CC43D';
 
   final HealthPermissionManager _permissions = SmHealthDevices().permissions;
 
@@ -80,81 +81,36 @@ class _DemoUsagePageState extends State<DemoUsagePage>
     // Blood Pressure
     _MeasurementOption(
       type: MeasurementType.bloodPressure,
-      provider: DeviceProvider.raycome,
-      icon: Icons.speed,
-    ),
-    _MeasurementOption(
-      type: MeasurementType.bloodPressure,
-      provider: DeviceProvider.lepu,
-      icon: Icons.speed,
-    ),
-    _MeasurementOption(
-      type: MeasurementType.bloodPressure,
-      provider: DeviceProvider.omron,
       icon: Icons.speed,
     ),
 
     // Weight
     _MeasurementOption(
       type: MeasurementType.weight,
-      provider: DeviceProvider.lepu,
-      icon: Icons.monitor_weight,
-    ),
-    _MeasurementOption(
-      type: MeasurementType.weight,
-      provider: DeviceProvider.omron,
       icon: Icons.monitor_weight,
     ),
 
     // SpO2
     _MeasurementOption(
       type: MeasurementType.spo2,
-      provider: DeviceProvider.lepu,
       icon: Icons.bloodtype,
     ),
-    // _MeasurementOption(
-    //   type: MeasurementType.spo2,
-    //   provider: DeviceProvider.omron,
-    //   icon: Icons.bloodtype,
-    // ),
 
     // Temperature
     _MeasurementOption(
       type: MeasurementType.temperature,
-      provider: DeviceProvider.lepu,
       icon: Icons.thermostat,
     ),
-    // _MeasurementOption(
-    //   type: MeasurementType.temperature,
-    //   provider: DeviceProvider.omron,
-    //   icon: Icons.thermostat,
-    // ),
 
     // Body Composition
     _MeasurementOption(
       type: MeasurementType.bodyComposition,
-      provider: DeviceProvider.fitrus,
       icon: Icons.accessibility_new,
     ),
-
-    // Activity
-    // _MeasurementOption(
-    //   type: MeasurementType.activity,
-    //   provider: DeviceProvider.omron,
-    //   icon: Icons.directions_run,
-    // ),
-
-    // Wheeze
-    // _MeasurementOption(
-    //   type: MeasurementType.wheeze,
-    //   provider: DeviceProvider.omron,
-    //   icon: Icons.record_voice_over,
-    // ),
 
     // Glucose
     _MeasurementOption(
       type: MeasurementType.glucometer,
-      provider: DeviceProvider.accucheck,
       icon: Icons.water_drop,
     ),
   ];
@@ -162,7 +118,16 @@ class _DemoUsagePageState extends State<DemoUsagePage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Health Devices Demo')),
+      appBar: AppBar(
+        title: const Text('Health Devices Demo'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => SmHealthSettingsPage.open(context),
+            tooltip: 'Settings',
+          ),
+        ],
+      ),
       body: Column(
         children: [
           // Status Section
@@ -208,10 +173,10 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                option.provider.displayName,
-                                style: const TextStyle(
-                                    color: Colors.grey, fontSize: 14),
+                              const Text(
+                                'Auto (Settings)',
+                                style:
+                                    TextStyle(color: Colors.grey, fontSize: 14),
                               ),
                             ],
                           ),
@@ -407,7 +372,7 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                                 ),
                               ),
                               Text(
-                                option.provider.displayName,
+                                'Auto (Settings)',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.blue.shade700,
@@ -438,27 +403,34 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                       child: SingleChildScrollView(
                         child: SmHealthDeviceWidget(
                           measurementType: option.type,
-                          provider: option.provider,
-                          fitrusApiKey: option.provider == DeviceProvider.fitrus
-                              ? _kFitrusApiKey
-                              : null,
-                          userProfile: option.provider == DeviceProvider.fitrus
-                              ? const SmUserProfile(
-                                  heightCm: 180,
-                                  weightKg: 75,
-                                  gender: Gender.male,
-                                  birthDate: "19900101",
-                                )
-                              : null,
                           onResult: (result) {
-                            debugPrint('Result: $result');
+                            debugPrint('Result: ${result.toJson()}');
                           },
                           onCancel: () => Navigator.pop(dialogContext),
-                          config: const SmDeviceConfig(showAppBar: false),
-                          initBuilder: _buildInit,
+                          initConfig: SmHealthInitConfig(
+                            autoSave: false,
+                            fitrusApiKey:
+                                option.type == MeasurementType.bodyComposition
+                                    ? _kFitrusApiKey
+                                    : null,
+                            omronApiKey: _kOmronApiKey,
+                            userProfile:
+                                option.type == MeasurementType.bodyComposition
+                                    ? const SmUserProfile(
+                                        heightCm: 180,
+                                        weightKg: 75,
+                                        gender: Gender.male,
+                                        birthDate: "19900101",
+                                      )
+                                    : null,
+                          ),
+                          uiConfig: const SmHealthUiConfig(
+                            showAppBar: false,
+                          ),
                           stateBuilder: _buildState,
                           successBuilder: _buildSuccess,
                           errorBuilder: _buildError,
+                          initBuilder: _buildInit,
                         ),
                       ),
                     ),
@@ -834,12 +806,10 @@ class _DemoUsagePageState extends State<DemoUsagePage>
 
 class _MeasurementOption {
   final MeasurementType type;
-  final DeviceProvider provider;
   final IconData icon;
 
   const _MeasurementOption({
     required this.type,
-    required this.provider,
     required this.icon,
   });
 }
