@@ -18,19 +18,27 @@ dependencies:
   
   # Fitrus (Body Composition)
   sm_fitrus:
-    path: ../sm_fitrus
+    git:
+      url: https://github.com/SmartMindSYSCoder/sm_fitrus.git
+      ref: main
 
   # Lepu (Oximeter, BP, Scale)
   sm_lepu:
-    path: ../sm_lepu
+    git:
+      url: https://github.com/SmartMindSYSCoder/sm_lepu.git
+      ref: main
 
   # Omron (BP, Body Composition)
   sm_omron:
-    path: ../sm_omron
+    git:
+      url: https://github.com/SmartMindSYSCoder/sm_omron.git
+      ref: main
 
   # Raycome (Blood Pressure)
   sm_raycome:
-    path: ../sm_raycome
+    git:
+      url: https://github.com/SmartMindSYSCoder/sm_raycome.git
+      ref: main
   
   # ------------------------------------------------------------------------
   # Core Utilities
