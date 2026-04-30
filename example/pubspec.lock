@@ -528,11 +528,9 @@ packages:
   sm_fitrus:
     dependency: transitive
     description:
-      path: "."
-      ref: HEAD
-      resolved-ref: "6d53b1969ba82cc54ac48dcc0c75e49891725f80"
-      url: "https://github.com/SmartMindSYSCoder/sm_fitrus.git"
-    source: git
+      path: "../../sm_fitrus"
+      relative: true
+    source: path
     version: "1.0.8"
   sm_flutter_health_devices:
     dependency: "direct main"
@@ -540,33 +538,27 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.0.0"
+    version: "1.0.2"
   sm_lepu:
     dependency: transitive
     description:
-      path: "."
-      ref: HEAD
-      resolved-ref: "5cd7032202a5a020849c5bdc0b480770521b5438"
-      url: "https://github.com/SmartMindSYSCoder/sm_lepu.git"
-    source: git
-    version: "1.0.3"
+      path: "../../sm_lepu"
+      relative: true
+    source: path
+    version: "1.0.4"
   sm_omron:
     dependency: transitive
     description:
-      path: "."
-      ref: HEAD
-      resolved-ref: b72c7b0a18142f338f8e5f20ac3a66c61b1c4474
-      url: "https://github.com/SmartMindSYSCoder/sm_omron.git"
-    source: git
+      path: "../../sm_omron"
+      relative: true
+    source: path
     version: "0.0.3"
   sm_raycome:
     dependency: transitive
     description:
-      path: "."
-      ref: HEAD
-      resolved-ref: "59343ac93d8c44f323a00a630f2e0cca659dc2d4"
-      url: "https://github.com/SmartMindSYSCoder/sm_raycome.git"
-    source: git
+      path: "../../sm_raycome"
+      relative: true
+    source: path
     version: "0.0.1"
   source_span:
     dependency: transitive

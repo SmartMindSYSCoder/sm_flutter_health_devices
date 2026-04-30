@@ -432,21 +432,22 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     debugPrint(
         'SmHealthDeviceWidget: Received event from ${event.provider} - State: ${event.connectionState}, HasError: ${event.hasError}, Msg: ${event.message}');
 
-    if (event.hasError) {
+    // 2. Track connection status
+    setState(() {
+      _lastEvent = event;
+
+      if (event.connectionState == HealthConnectionState.scanning) {
+        _isScanning = true;
+      } else {
+        _isScanning = false;
+      }
+    });
+
+    // 3. Handle Errors
+    if (event.hasError || event.connectionState == HealthConnectionState.error) {
+      debugPrint('SmHealthDeviceWidget: Error detected in event: ${event.message}');
       _setError(event.message);
       return;
-    }
-
-    // Clear any previous error if we receive an active progress event
-    if (_errorMessage != null) {
-      final state = event.connectionState;
-      if (state == HealthConnectionState.scanning ||
-          state == HealthConnectionState.connecting ||
-          state == HealthConnectionState.measuring) {
-        setState(() {
-          _errorMessage = null;
-        });
-      }
     }
 
     // If we've already reached success, ignore all further events
@@ -481,26 +482,21 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       }
     });
 
-    if (event.hasError) {
-      _setError(event.message);
-      return;
-    }
-
     // Success check:
     // If completed, we just stay in this state. The builder logic in build()
     // will pick up the "completed" state and render the success view.
   }
 
-  void _setError(String msg) {
+  void _setError(String? message) {
     if (!mounted) return;
+    debugPrint('SmHealthDeviceWidget: Transitioning to ERROR state: $message');
     setState(() {
-      _errorMessage = msg;
+      _errorMessage = message ?? 'An error occurred';
       _isScanning = false;
       _isConnecting = false;
       _isMeasuring = false;
-      _hasReachedSuccess = false; // Reset success flag on error
     });
-    widget.onError?.call(msg);
+    widget.onError?.call(_errorMessage);
   }
 
   @override

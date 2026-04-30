@@ -306,6 +306,11 @@ class SmHealthDevices {
       // Weight data comes through the event stream
       return null; // Data will be received via getEvents()
     } catch (e) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.lepu,
+        measurementType: MeasurementType.weight,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.weight,
@@ -349,6 +354,11 @@ class SmHealthDevices {
       }
       return null;
     } catch (e) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.omron,
+        measurementType: MeasurementType.weight,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.weight,
@@ -408,6 +418,11 @@ class SmHealthDevices {
       // BP data comes through the event stream
       return null;
     } catch (e) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.lepu,
+        measurementType: MeasurementType.bloodPressure,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.bloodPressure,
@@ -451,6 +466,11 @@ class SmHealthDevices {
       }
       return null;
     } catch (e) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.omron,
+        measurementType: MeasurementType.bloodPressure,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.bloodPressure,
@@ -592,6 +612,11 @@ class SmHealthDevices {
       // Temperature data comes through the event stream
       return null;
     } catch (e) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.lepu,
+        measurementType: MeasurementType.temperature,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.temperature,
@@ -626,6 +651,11 @@ class SmHealthDevices {
       }
       return null;
     } catch (e) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.omron,
+        measurementType: MeasurementType.temperature,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.temperature,
@@ -681,6 +711,11 @@ class SmHealthDevices {
       // SpO2 data comes through the event stream
       return null;
     } catch (e) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.lepu,
+        measurementType: MeasurementType.spo2,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.spo2,
@@ -723,6 +758,11 @@ class SmHealthDevices {
       }
       return null;
     } catch (e) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.omron,
+        measurementType: MeasurementType.spo2,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.spo2,
@@ -783,6 +823,11 @@ class SmHealthDevices {
       return null;
     } catch (e) {
       debugPrint('SmHealthDevices: readBodyComposition exception: $e');
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.fitrus,
+        measurementType: MeasurementType.bodyComposition,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.fitrus,
         measurementType: MeasurementType.bodyComposition,
@@ -992,6 +1037,11 @@ class SmHealthDevices {
       }
       return null;
     } catch (e) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.omron,
+        measurementType: MeasurementType.activity,
+        message: e.toString(),
+      ));
       return HealthVitalResult.error(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.activity,
