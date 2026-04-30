@@ -142,6 +142,9 @@ class OmronAdapter {
     if (s.contains('disconnected')) {
       return HealthConnectionState.disconnected;
     }
+    if (s.contains('error') || s.contains('fail') || s.contains('timeout')) {
+      return HealthConnectionState.error;
+    }
 
     // Default fallback
     return HealthConnectionState.unknown;
@@ -162,6 +165,7 @@ class OmronAdapter {
       provider: DeviceProvider.omron,
       measurementType: MeasurementType.unknown, // Status is general to provider
       connectionState: connectionState,
+      hasError: connectionState == HealthConnectionState.error,
       message: message,
     );
   }

@@ -437,11 +437,16 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       return;
     }
 
-    // Clear any previous error if we receive a valid non-error event
+    // Clear any previous error if we receive an active progress event
     if (_errorMessage != null) {
-      setState(() {
-        _errorMessage = null;
-      });
+      final state = event.connectionState;
+      if (state == HealthConnectionState.scanning ||
+          state == HealthConnectionState.connecting ||
+          state == HealthConnectionState.measuring) {
+        setState(() {
+          _errorMessage = null;
+        });
+      }
     }
 
     // If we've already reached success, ignore all further events

@@ -896,6 +896,10 @@ class SmHealthDevices {
           lowerMsg.contains('received')) {
         // Keep as connected or dataAvailable
         state = HealthConnectionState.connected;
+      } else if (lowerMsg.contains('error') ||
+          lowerMsg.contains('fail') ||
+          lowerMsg.contains('timeout')) {
+        state = HealthConnectionState.error;
       } else {
         // Ignore other verbose logs to prevent spamming the UI stream excessively
         // or default to 'connecting' if it's an intermediate step
@@ -906,6 +910,7 @@ class SmHealthDevices {
         provider: DeviceProvider.accucheck,
         measurementType: MeasurementType.glucometer,
         connectionState: state,
+        hasError: state == HealthConnectionState.error,
         message: logMsg, // Pass the actual log message for UI details
       ));
     });
@@ -1060,10 +1065,19 @@ class SmHealthDevices {
       message: 'Scanning for Omron device...',
     ));
 
-    return await _omron.scanBleDevice(
+    final device = await _omron.scanBleDevice(
       deviceIdentifier: deviceIdentifier,
       timeout: timeout,
     );
+
+    if (device == null) {
+      _eventController?.add(HealthEventData.error(
+        provider: DeviceProvider.omron,
+        message: 'Scan timed out. Device not found.',
+      ));
+    }
+
+    return device;
   }
 
   /// Pair with a specific Omron BLE device

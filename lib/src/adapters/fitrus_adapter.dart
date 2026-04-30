@@ -27,11 +27,13 @@ class FitrusAdapter {
       );
     }
 
+    final connectionState = _mapConnectionState(event.connectionState);
     return HealthEventData(
       provider: DeviceProvider.fitrus,
       measurementType: MeasurementType.bodyComposition,
-      connectionState: _mapConnectionState(event.connectionState),
+      connectionState: connectionState,
       isConnected: event.isConnected, // Carry over connected state
+      hasError: connectionState == HealthConnectionState.error,
       message: 'Status: ${event.connectionState.name}',
     );
   }
@@ -51,7 +53,7 @@ class FitrusAdapter {
       case FitrusConnectionState.discoveringServices:
         return HealthConnectionState.connected;
       case FitrusConnectionState.scanFailed:
-        return HealthConnectionState.disconnected;
+        return HealthConnectionState.error;
       case FitrusConnectionState.dataAvailable:
         return HealthConnectionState.connected;
       default:
