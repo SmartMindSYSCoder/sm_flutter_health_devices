@@ -24,8 +24,8 @@ class SmHealthInitConfig {
 
   /// Language used by plugin settings pages.
   ///
-  /// Supported values are `en` and `ar`. Any other value falls back to `en`.
-  final String lang;
+  /// Defaults to [SmHealthSettingsLanguage.en].
+  final SmHealthSettingsLanguage lang;
 
   const SmHealthInitConfig({
     this.autoStartScan = true,
@@ -34,6 +34,6 @@ class SmHealthInitConfig {
     this.userProfile,
     this.fitrusApiKey,
     this.omronApiKey,
-    this.lang = 'en',
+    this.lang = SmHealthSettingsLanguage.en,
   });
 }

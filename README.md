@@ -412,7 +412,21 @@ SmHealthInitConfig(
   
   // Behavior
   autoSave: true,
+
+  // Settings page language: .en (default) or .ar
+  lang: SmHealthSettingsLanguage.en,
 )
+```
+
+The settings and Omron device pages support English and Arabic. Arabic
+automatically enables RTL layout. The enum prevents unsupported language
+values from being passed accidentally.
+
+```dart
+SmHealthSettingsPage.open(
+  context,
+  initConfig: const SmHealthInitConfig(lang: SmHealthSettingsLanguage.ar),
+);
 ```
 
 #### SmHealthUiConfig (Shell Styling)

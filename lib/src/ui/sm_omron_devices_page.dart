@@ -39,7 +39,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
   bool _isLoading = true;
 
   SmHealthSettingsTranslations get _translations =>
-      SmHealthSettingsTranslations.forLanguage(widget.initConfig.lang);
+      SmHealthSettingsTranslations(widget.initConfig.lang);
 
   // State for scanning/pairing feedback
   omron.OmronConnectionState _connectionState = omron.OmronConnectionState.idle;

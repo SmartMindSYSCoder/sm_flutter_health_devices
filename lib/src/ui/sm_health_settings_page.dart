@@ -150,7 +150,7 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
   final SmHealthDevices _healthDevices = SmHealthDevices();
 
   SmHealthSettingsTranslations get _translations =>
-      SmHealthSettingsTranslations.forLanguage(widget.initConfig.lang);
+      SmHealthSettingsTranslations(widget.initConfig.lang);
 
   final List<MeasurementType> _configurableTypes = [
     MeasurementType.weight,

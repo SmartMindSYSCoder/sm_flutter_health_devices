@@ -128,7 +128,7 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                 initConfig: const SmHealthInitConfig(
                     fitrusApiKey: _kFitrusApiKey,
                     omronApiKey: _kOmronApiKey,
-                    lang: 'ar'),
+                    lang: SmHealthSettingsLanguage.ar),
                 theme: const SmHealthSettingsThemeData()),
             tooltip: 'Settings',
           ),

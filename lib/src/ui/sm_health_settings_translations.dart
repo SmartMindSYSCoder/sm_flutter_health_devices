@@ -3,21 +3,21 @@ import 'package:sm_omron/sm_omron.dart' as omron;
 
 import '../models/enums.dart';
 
+/// Supported languages for the health settings pages.
+enum SmHealthSettingsLanguage {
+  en,
+  ar,
+}
+
 /// English and Arabic text used by the health settings pages.
-///
-/// Use `ar` for Arabic. Any other language code falls back to English.
 class SmHealthSettingsTranslations {
-  final String languageCode;
+  final SmHealthSettingsLanguage language;
 
-  const SmHealthSettingsTranslations._(this.languageCode);
+  const SmHealthSettingsTranslations(this.language);
 
-  factory SmHealthSettingsTranslations.forLanguage(String languageCode) {
-    return SmHealthSettingsTranslations._(
-      languageCode.toLowerCase() == 'ar' ? 'ar' : 'en',
-    );
-  }
+  String get languageCode => language.name;
 
-  bool get isArabic => languageCode == 'ar';
+  bool get isArabic => language == SmHealthSettingsLanguage.ar;
 
   TextDirection get textDirection =>
       isArabic ? TextDirection.rtl : TextDirection.ltr;
@@ -151,14 +151,18 @@ class SmHealthSettingsTranslations {
         return isArabic
             ? 'تم الاتصال، جارٍ الإنهاء...'
             : 'Connected! Finalizing...';
+      case omron.OmronConnectionState.transferring:
+        return isArabic ? 'جارٍ نقل البيانات...' : 'Transferring data...';
+      case omron.OmronConnectionState.recording:
+        return isArabic ? 'جارٍ التسجيل...' : 'Recording...';
       case omron.OmronConnectionState.disconnecting:
         return isArabic ? 'جارٍ قطع الاتصال...' : 'Disconnecting...';
       case omron.OmronConnectionState.disconnected:
         return isArabic ? 'تم قطع الاتصال.' : 'Disconnected.';
       case omron.OmronConnectionState.idle:
-        return isArabic ? 'خامل.' : 'Idle.';
-      default:
-        return state.statusMessage;
+        return isArabic ? 'جاهز.' : 'Ready.';
+      case omron.OmronConnectionState.error:
+        return isArabic ? 'خطأ.' : 'Error.';
     }
   }
 }
