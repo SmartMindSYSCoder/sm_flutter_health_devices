@@ -98,22 +98,10 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.settings_outlined, color: colors.primary),
             tooltip: 'Measurement Settings',
             onPressed: () {
-              final theme = Theme.of(context);
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => SmHealthSettingsPage(
-                    style: SmHealthSettingsStyle(
-                      primaryColor: theme.primaryColor,
-                      cardShape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(
-                          color: theme.dividerColor.withOpacity(0.1),
-                        ),
-                      ),
-                      backgroundColor: theme.scaffoldBackgroundColor,
-                    ),
-                  ),
+                  builder: (context) => const SmHealthSettingsPage(),
                 ),
               );
             },

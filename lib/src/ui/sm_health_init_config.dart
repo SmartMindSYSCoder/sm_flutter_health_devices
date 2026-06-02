@@ -22,6 +22,11 @@ class SmHealthInitConfig {
   /// Optional API Key for Omron provider
   final String? omronApiKey;
 
+  /// Language used by plugin settings pages.
+  ///
+  /// Supported values are `en` and `ar`. Any other value falls back to `en`.
+  final String lang;
+
   const SmHealthInitConfig({
     this.autoStartScan = true,
     this.showResultDialog = false,
@@ -29,5 +34,6 @@ class SmHealthInitConfig {
     this.userProfile,
     this.fitrusApiKey,
     this.omronApiKey,
+    this.lang = 'en',
   });
 }

@@ -1,67 +1,141 @@
 import 'package:flutter/material.dart';
+
 import '../../sm_flutter_health_devices.dart';
 import 'sm_omron_devices_page.dart';
 
-/// Customization style for [SmHealthSettingsPage].
-class SmHealthSettingsStyle {
+/// Theme overrides for [SmHealthSettingsPage] and its related pages.
+///
+/// The page uses a built-in modern light theme by default. Pass only the
+/// overrides that your application needs.
+class SmHealthSettingsThemeData {
+  /// Page title shown in the settings app bar.
+  ///
+  /// Defaults to `Measurement Settings`.
   final String? title;
+
+  /// Main page background color for the settings and Omron devices pages.
+  final Color backgroundColor;
+
+  /// Background color for measurement cards, Omron device cards, and dialogs.
+  final Color cardColor;
+
+  /// Accent color for selected provider chips, icons, loading indicators,
+  /// buttons, and the add-device floating action button.
+  final Color primaryColor;
+
+  /// Main text color for page titles, card titles, and device names.
+  final Color textColor;
+
+  /// Muted text color for descriptions, labels, serial numbers, and captions.
+  final Color secondaryTextColor;
+
+  /// Border color for cards, chips, status badges, and icon containers.
+  final Color borderColor;
+
+  /// Background color for unselected provider chips and serial-number labels.
+  final Color chipColor;
+
+  /// Optional style for page and dialog titles.
+  ///
+  /// When null, a bold 20px style using [textColor] is applied.
   final TextStyle? titleTextStyle;
-  final Color? backgroundColor;
-  final Color? cardColor;
-  final Color? primaryColor;
-  final Color? secondaryColor;
+
+  /// Optional style for measurement names, Omron device names, and card titles.
+  ///
+  /// When null, a bold 17px style using [textColor] is applied.
+  final TextStyle? itemTitleTextStyle;
+
+  /// Optional style for descriptions and secondary labels.
+  ///
+  /// When null, a 13px style using [secondaryTextColor] is applied.
+  final TextStyle? bodyTextStyle;
+
+  /// Elevation for measurement setting cards.
   final double cardElevation;
+
+  /// Inner padding for measurement setting cards.
   final EdgeInsetsGeometry cardPadding;
-  final ShapeBorder? cardShape;
-  final TextStyle? measurementTitleStyle;
-  final TextStyle? providerLabelStyle;
-  final Color? selectedChipColor;
-  final Color? unselectedChipColor;
-  final Color? onSelectedChipColor;
+
+  /// Corner radius for settings cards and Omron device cards.
+  final double cardBorderRadius;
+
+  /// Corner radius for provider selection chips.
   final double chipBorderRadius;
 
-  const SmHealthSettingsStyle({
+  const SmHealthSettingsThemeData({
     this.title,
+    this.backgroundColor = const Color(0xFFF8FAFC),
+    this.cardColor = Colors.white,
+    this.primaryColor = const Color(0xFF2563EB),
+    this.textColor = const Color(0xFF172033),
+    this.secondaryTextColor = const Color(0xFF64748B),
+    this.borderColor = const Color(0xFFE2E8F0),
+    this.chipColor = const Color(0xFFF1F5F9),
     this.titleTextStyle,
-    this.backgroundColor,
-    this.cardColor,
-    this.primaryColor,
-    this.secondaryColor,
+    this.itemTitleTextStyle,
+    this.bodyTextStyle,
     this.cardElevation = 0,
     this.cardPadding = const EdgeInsets.all(20),
-    this.cardShape,
-    this.measurementTitleStyle,
-    this.providerLabelStyle,
-    this.selectedChipColor,
-    this.unselectedChipColor,
-    this.onSelectedChipColor,
-    this.chipBorderRadius = 12,
+    this.cardBorderRadius = 20,
+    this.chipBorderRadius = 14,
   });
+
+  Color get primarySoftColor =>
+      Color.alphaBlend(primaryColor.withValues(alpha: 0.14), cardColor);
+
+  Color get dangerColor => const Color(0xFFDC2626);
+
+  Color get dangerSoftColor => const Color(0xFFFEE2E2);
+
+  Color get successColor => const Color(0xFF16A34A);
+
+  TextStyle get resolvedTitleTextStyle =>
+      titleTextStyle ??
+      TextStyle(
+        color: textColor,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+      );
+
+  TextStyle get resolvedItemTitleTextStyle =>
+      itemTitleTextStyle ??
+      TextStyle(
+        color: textColor,
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+      );
+
+  TextStyle get resolvedBodyTextStyle =>
+      bodyTextStyle ??
+      TextStyle(
+        color: secondaryTextColor,
+        fontSize: 13,
+      );
 }
 
 /// A highly customizable Settings Page for health device provider selection.
 /// This is part of the plugin UI and can be used directly in any application.
 class SmHealthSettingsPage extends StatefulWidget {
-  final SmHealthSettingsStyle style;
+  final SmHealthSettingsThemeData theme;
   final SmHealthInitConfig initConfig;
 
   const SmHealthSettingsPage({
     super.key,
-    this.style = const SmHealthSettingsStyle(),
+    this.theme = const SmHealthSettingsThemeData(),
     this.initConfig = const SmHealthInitConfig(),
   });
 
   /// Static method to easily open the settings page.
   static Future<void> open(
     BuildContext context, {
-    SmHealthSettingsStyle style = const SmHealthSettingsStyle(),
+    SmHealthSettingsThemeData theme = const SmHealthSettingsThemeData(),
     SmHealthInitConfig initConfig = const SmHealthInitConfig(),
   }) {
     return Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SmHealthSettingsPage(
-          style: style,
+          theme: theme,
           initConfig: initConfig,
         ),
       ),
@@ -74,6 +148,9 @@ class SmHealthSettingsPage extends StatefulWidget {
 
 class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
   final SmHealthDevices _healthDevices = SmHealthDevices();
+
+  SmHealthSettingsTranslations get _translations =>
+      SmHealthSettingsTranslations.forLanguage(widget.initConfig.lang);
 
   final List<MeasurementType> _configurableTypes = [
     MeasurementType.weight,
@@ -102,23 +179,59 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final style = widget.style;
+    final settingsTheme = widget.theme;
+    final translations = _translations;
 
     if (!_healthDevices.isInitialized) {
-      return Scaffold(
-        backgroundColor: style.backgroundColor ?? colors.surface,
+      return Directionality(
+        textDirection: translations.textDirection,
+        child: Scaffold(
+          backgroundColor: settingsTheme.backgroundColor,
+          appBar: AppBar(
+            title: Text(
+              settingsTheme.title ?? translations.measurementSettings,
+              style: settingsTheme.resolvedTitleTextStyle,
+            ),
+            centerTitle: true,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: translations.resetToDefaults,
+                onPressed: () async {
+                  final confirm = await _showResetConfirmation(context);
+                  if (confirm == true) {
+                    await _healthDevices.settingsManager.resetToDefaults();
+                    if (mounted) setState(() {});
+                  }
+                },
+              ),
+            ],
+          ),
+          body: const Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    return Directionality(
+      textDirection: translations.textDirection,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
-          title: Text(style.title ?? 'Measurement Settings',
-              style: style.titleTextStyle),
+          title: Text(
+            settingsTheme.title ?? translations.measurementSettings,
+            style: settingsTheme.resolvedTitleTextStyle,
+          ),
           centerTitle: true,
           elevation: 0,
           backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          iconTheme: IconThemeData(color: settingsTheme.primaryColor),
           actions: [
             IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Reset to Defaults',
+              icon: const Icon(Icons.refresh_rounded),
+              tooltip: translations.resetToDefaults,
               onPressed: () async {
                 final confirm = await _showResetConfirmation(context);
                 if (confirm == true) {
@@ -129,108 +242,65 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
             ),
           ],
         ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Text(
-          style.title ?? 'Settings',
-          style: style.titleTextStyle ??
-              const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  color: Colors.white),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: style.primaryColor != null
-            ? IconThemeData(color: style.primaryColor)
-            : const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Reset to Defaults',
-            onPressed: () async {
-              final confirm = await _showResetConfirmation(context);
-              if (confirm == true) {
-                await _healthDevices.settingsManager.resetToDefaults();
-                if (mounted) setState(() {});
-              }
-            },
+        body: Container(
+          decoration: BoxDecoration(
+            color: settingsTheme.backgroundColor,
           ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              style.primaryColor?.withOpacity(0.8) ?? colors.primary,
-              style.secondaryColor?.withOpacity(0.6) ?? colors.tertiary,
-              colors.surface.withOpacity(0.95),
-            ],
-            stops: const [0.0, 0.4, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            physics: const BouncingScrollPhysics(),
-            children: [
-              TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0.0, end: 1.0),
-                duration: const Duration(milliseconds: 600),
-                builder: (context, value, child) {
-                  return Opacity(
-                    opacity: value,
-                    child: Transform.translate(
-                      offset: Offset(0, 20 * (1 - value)),
-                      child: child,
-                    ),
-                  );
-                },
-                child: _buildOmronDevicesCard(colors, style),
-              ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 12),
-                child: Text(
-                  'Preferences',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white.withOpacity(0.9),
-                    letterSpacing: 1.1,
-                  ),
-                ),
-              ),
-              ..._configurableTypes.asMap().entries.map((entry) {
-                final index = entry.key;
-                final type = entry.value;
-                return TweenAnimationBuilder<double>(
+          child: SafeArea(
+            bottom: false,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              physics: const BouncingScrollPhysics(),
+              children: [
+                TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: 1.0),
-                  duration: Duration(milliseconds: 600 + (index * 100)),
+                  duration: const Duration(milliseconds: 600),
                   builder: (context, value, child) {
                     return Opacity(
                       opacity: value,
                       child: Transform.translate(
-                        offset: Offset(0, 30 * (1 - value)),
+                        offset: Offset(0, 20 * (1 - value)),
                         child: child,
                       ),
                     );
                   },
-                  child: _buildMeasurementSettingCard(type, colors, style),
-                );
-              }),
-              const SizedBox(height: 40),
-            ],
+                  child: _buildOmronDevicesCard(settingsTheme),
+                ),
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 12),
+                  child: Text(
+                    translations.preferences,
+                    style: settingsTheme.resolvedBodyTextStyle.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ),
+                ..._configurableTypes.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final type = entry.value;
+                  return TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: Duration(milliseconds: 600 + (index * 100)),
+                    builder: (context, value, child) {
+                      return Opacity(
+                        opacity: value,
+                        child: Transform.translate(
+                          offset: Offset(0, 30 * (1 - value)),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _buildMeasurementSettingCard(
+                      type,
+                      settingsTheme,
+                    ),
+                  );
+                }),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
@@ -240,69 +310,69 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
   Future<bool?> _showResetConfirmation(BuildContext context) {
     return showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset to Defaults?'),
-        content: const Text(
-            'This will reset all your preferred device providers to their default values.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reset'),
-          ),
-        ],
+      builder: (context) => Directionality(
+        textDirection: _translations.textDirection,
+        child: AlertDialog(
+          title: Text(_translations.resetToDefaultsQuestion),
+          content: Text(_translations.resetToDefaultsDescription),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(_translations.cancel),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(_translations.reset),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildOmronDevicesCard(
-      ColorScheme colors, SmHealthSettingsStyle style) {
+  Widget _buildOmronDevicesCard(SmHealthSettingsThemeData settingsTheme) {
+    final borderRadius = BorderRadius.circular(settingsTheme.cardBorderRadius);
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        color: settingsTheme.primarySoftColor,
+        borderRadius: borderRadius,
+        border: Border.all(color: settingsTheme.borderColor),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: borderRadius,
         child: Material(
           color: Colors.transparent,
           child: ListTile(
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             leading: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: settingsTheme.primaryColor.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.bluetooth_searching_rounded,
-                color: Colors.white,
+                color: settingsTheme.primaryColor,
                 size: 28,
               ),
             ),
-            title: const Text(
-              'Omron Devices',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: Colors.white,
-              ),
+            title: Text(
+              _translations.omronDevices,
+              style: settingsTheme.resolvedItemTitleTextStyle,
             ),
             subtitle: Text(
-              'Manage your paired equipment',
-              style:
-                  TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
+              _translations.managePairedEquipment,
+              style: settingsTheme.resolvedBodyTextStyle,
             ),
-            trailing:
-                const Icon(Icons.chevron_right_rounded, color: Colors.white70),
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              color: settingsTheme.textColor,
+            ),
             onTap: () => SmOmronDevicesPage.open(
               context,
-              style: style,
+              theme: settingsTheme,
               initConfig: widget.initConfig,
             ),
           ),
@@ -312,27 +382,23 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
   }
 
   Widget _buildMeasurementSettingCard(
-      MeasurementType type, ColorScheme colors, SmHealthSettingsStyle style) {
+      MeasurementType type, SmHealthSettingsThemeData settingsTheme) {
     final currentProvider =
         _healthDevices.settingsManager.getPreferredProvider(type);
     final supportedProviders = type.supportedProviders;
 
-    return Container(
+    final defaultShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(settingsTheme.cardBorderRadius),
+      side: BorderSide(color: settingsTheme.borderColor),
+    );
+
+    return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
+      color: settingsTheme.cardColor,
+      elevation: settingsTheme.cardElevation,
+      shape: defaultShape,
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: settingsTheme.cardPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -341,32 +407,27 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
+                    color: settingsTheme.primarySoftColor,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     _getMeasurementIcon(type),
-                    color: Colors.white,
+                    color: settingsTheme.primaryColor,
                     size: 20,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Text(
-                  type.displayName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                  _translations.measurementType(type),
+                  style: settingsTheme.resolvedItemTitleTextStyle,
                 ),
               ],
             ),
             const SizedBox(height: 20),
             Text(
-              'PREFERRED PROVIDER',
-              style: TextStyle(
+              _translations.preferredProvider,
+              style: settingsTheme.resolvedBodyTextStyle.copyWith(
                 fontSize: 11,
-                color: Colors.white.withOpacity(0.5),
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
               ),
@@ -391,29 +452,32 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                         horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? Colors.white
-                          : Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
+                          ? settingsTheme.primaryColor
+                          : settingsTheme.chipColor,
+                      borderRadius:
+                          BorderRadius.circular(settingsTheme.chipBorderRadius),
                       border: Border.all(
                         color: isSelected
-                            ? Colors.white
-                            : Colors.white.withOpacity(0.2),
-                        width: 1.5,
+                            ? settingsTheme.primaryColor
+                            : settingsTheme.borderColor,
                       ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
-                                color: Colors.white.withOpacity(0.1),
-                                blurRadius: 12,
-                                spreadRadius: 0,
+                                color: settingsTheme.primaryColor
+                                    .withValues(alpha: 0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               )
                             ]
                           : [],
                     ),
                     child: Text(
-                      provider.displayName,
+                      _translations.provider(provider),
                       style: TextStyle(
-                        color: isSelected ? Colors.black : Colors.white70,
+                        color: isSelected
+                            ? Colors.white
+                            : settingsTheme.secondaryTextColor,
                         fontWeight:
                             isSelected ? FontWeight.bold : FontWeight.w500,
                         fontSize: 14,

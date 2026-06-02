@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sm_flutter_health_devices/sm_flutter_health_devices.dart';
@@ -123,13 +124,12 @@ class _DemoUsagePageState extends State<DemoUsagePage>
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => SmHealthSettingsPage.open(
-              context,
-              initConfig: const SmHealthInitConfig(
-                fitrusApiKey: _kFitrusApiKey,
-                omronApiKey: _kOmronApiKey,
-              ),
-            ),
+            onPressed: () => SmHealthSettingsPage.open(context,
+                initConfig: const SmHealthInitConfig(
+                    fitrusApiKey: _kFitrusApiKey,
+                    omronApiKey: _kOmronApiKey,
+                    lang: 'ar'),
+                theme: const SmHealthSettingsThemeData()),
             tooltip: 'Settings',
           ),
         ],

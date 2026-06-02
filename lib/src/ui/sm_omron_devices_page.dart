@@ -4,25 +4,25 @@ import '../../sm_flutter_health_devices.dart';
 import 'package:sm_omron/sm_omron.dart' as omron;
 
 class SmOmronDevicesPage extends StatefulWidget {
-  final SmHealthSettingsStyle style;
+  final SmHealthSettingsThemeData theme;
   final SmHealthInitConfig initConfig;
 
   const SmOmronDevicesPage({
     super.key,
-    required this.style,
+    this.theme = const SmHealthSettingsThemeData(),
     this.initConfig = const SmHealthInitConfig(),
   });
 
   static Future<void> open(
     BuildContext context, {
-    required SmHealthSettingsStyle style,
+    SmHealthSettingsThemeData theme = const SmHealthSettingsThemeData(),
     SmHealthInitConfig initConfig = const SmHealthInitConfig(),
   }) {
     return Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SmOmronDevicesPage(
-          style: style,
+          theme: theme,
           initConfig: initConfig,
         ),
       ),
@@ -37,6 +37,9 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
   final SmHealthDevices _healthDevices = SmHealthDevices();
   List<omron.ScannedDevice> _savedDevices = [];
   bool _isLoading = true;
+
+  SmHealthSettingsTranslations get _translations =>
+      SmHealthSettingsTranslations.forLanguage(widget.initConfig.lang);
 
   // State for scanning/pairing feedback
   omron.OmronConnectionState _connectionState = omron.OmronConnectionState.idle;
@@ -74,22 +77,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
   }
 
   String _getStatusDescription(omron.OmronConnectionState state) {
-    switch (state) {
-      case omron.OmronConnectionState.scanning:
-        return "Searching for device...";
-      case omron.OmronConnectionState.connecting:
-        return "Connecting...";
-      case omron.OmronConnectionState.connected:
-        return "Connected! Finalizing...";
-      case omron.OmronConnectionState.disconnecting:
-        return "Disconnecting...";
-      case omron.OmronConnectionState.disconnected:
-        return "Disconnected.";
-      case omron.OmronConnectionState.idle:
-        return "Idle.";
-      default:
-        return state.statusMessage;
-    }
+    return _translations.omronStatus(state);
   }
 
   @override
@@ -108,7 +96,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      _showError('Error loading devices: $e');
+      _showError(_translations.errorLoadingDevices(e));
     }
   }
 
@@ -117,7 +105,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: widget.theme.dangerColor,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -125,6 +113,8 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
   }
 
   Future<void> _addDevice() async {
+    final settingsTheme = widget.theme;
+
     // 1. Check Permissions and Services
     final permissions = _healthDevices.permissions;
 
@@ -136,13 +126,13 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
     }
 
     if (!btGranted) {
-      _showError("Bluetooth permission is required to scan for devices.");
+      _showError(_translations.bluetoothPermissionRequired);
       return;
     }
 
     bool btEnabled = await permissions.isBluetoothEnabled();
     if (!btEnabled) {
-      _showError("Please turn on Bluetooth to scan for devices.");
+      _showError(_translations.enableBluetooth);
       return;
     }
 
@@ -155,40 +145,39 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
     }
 
     if (!locGranted) {
-      _showError("Location permission is required to scan for BLE devices.");
+      _showError(_translations.locationPermissionRequired);
       return;
     }
 
     bool locEnabled = await permissions.isLocationServiceEnabled();
     if (!locEnabled) {
-      _showError("Please enable Location services to scan for BLE devices.");
+      _showError(_translations.enableLocation);
       return;
     }
 
+    if (!mounted) return;
+
     // 2. Show Selector
-    final deviceModel = await omron.OmronDeviceSelectorDialog.show(
-      context,
-      title: const Text("Select Omron Device"),
-    );
+    final deviceModel = await _showDeviceSelector(settingsTheme);
 
     if (deviceModel == null) return;
 
     setState(() {
       _isOperationInProgress = true;
-      _statusMessage = "Starting...";
+      _statusMessage = _translations.starting;
     });
 
     try {
       omron.ScannedDevice? scannedDevice;
 
       // Show progress overlay
-      _showProgressDialog(deviceModel.modelName ?? "Device");
+      _showProgressDialog(deviceModel.modelName ?? _translations.unknownDevice);
 
       if (deviceModel.isRecordingWave) {
         scannedDevice = _healthDevices.createOmronRecordingDevice(deviceModel);
       } else if (deviceModel.deviceIdentifier != null) {
-        setState(
-            () => _statusMessage = "Scanning for ${deviceModel.modelName}...");
+        setState(() =>
+            _statusMessage = _translations.scanningFor(deviceModel.modelName));
         scannedDevice = await _healthDevices.scanOmronBleDevice(
           deviceIdentifier: deviceModel.deviceIdentifier!,
           timeout: const Duration(seconds: 30),
@@ -197,13 +186,14 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
 
       if (scannedDevice != null) {
         if (!deviceModel.isRecordingWave) {
+          final scannedDeviceName = scannedDevice.modelName;
           setState(() =>
-              _statusMessage = "Pairing with ${scannedDevice?.modelName}...");
+              _statusMessage = _translations.pairingWith(scannedDeviceName));
           final paired =
-              await _healthDevices.pairOmronBleDevice(device: scannedDevice!);
+              await _healthDevices.pairOmronBleDevice(device: scannedDevice);
           if (!paired) {
             _closeProgressDialog();
-            _showError('Pairing failed. Please try again.');
+            _showError(_translations.pairingFailed);
             return;
           }
         }
@@ -214,20 +204,20 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Device added successfully!'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: Text(_translations.deviceAddedSuccessfully),
+              backgroundColor: widget.theme.successColor,
               behavior: SnackBarBehavior.floating,
             ),
           );
         }
       } else {
         _closeProgressDialog();
-        _showError('Device not found. Ensure it is in pairing mode.');
+        _showError(_translations.deviceNotFound);
       }
     } catch (e) {
       _closeProgressDialog();
-      _showError('Error adding device: $e');
+      _showError(_translations.errorAddingDevice(e));
     } finally {
       if (mounted) {
         setState(() {
@@ -238,36 +228,221 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
     }
   }
 
+  Future<omron.DeviceModel?> _showDeviceSelector(
+      SmHealthSettingsThemeData settingsTheme) {
+    final colors = _buildColorScheme(settingsTheme);
+    final textTheme = _buildTextTheme(settingsTheme);
+    final translations = _translations;
+    final smOmron = omron.SMOmron();
+    var devicesFuture = smOmron.getSupportedDevices();
+
+    return showDialog<omron.DeviceModel>(
+      context: context,
+      builder: (dialogContext) => Directionality(
+        textDirection: translations.textDirection,
+        child: Theme(
+          data: ThemeData(
+            useMaterial3: true,
+            colorScheme: colors,
+            textTheme: textTheme,
+            dividerColor: colors.outlineVariant,
+          ),
+          child: Dialog(
+            clipBehavior: Clip.antiAlias,
+            backgroundColor: colors.surfaceContainer,
+            surfaceTintColor: Colors.transparent,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 500, maxWidth: 400),
+              child: StatefulBuilder(
+                builder: (context, setDialogState) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              translations.selectOmronDevice,
+                              style: textTheme.titleLarge,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: colors.onSurfaceVariant,
+                            ),
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Divider(height: 1, color: colors.outlineVariant),
+                    Flexible(
+                      child: FutureBuilder<List<omron.DeviceModel>>(
+                        future: devicesFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState !=
+                              ConnectionState.done) {
+                            return Center(
+                              child: CircularProgressIndicator(
+                                  color: colors.primary),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.error_outline,
+                                        color: settingsTheme.dangerColor,
+                                        size: 48),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      translations
+                                          .errorLoadingDevices(snapshot.error!),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ElevatedButton(
+                                      onPressed: () => setDialogState(() {
+                                        devicesFuture =
+                                            smOmron.getSupportedDevices();
+                                      }),
+                                      child: Text(translations.retry),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          final devices = snapshot.data ?? [];
+                          if (devices.isEmpty) {
+                            return Center(
+                              child: Text(translations.noDevicesAvailable),
+                            );
+                          }
+
+                          return ListView.separated(
+                            itemCount: devices.length,
+                            separatorBuilder: (context, index) => Divider(
+                                height: 1, color: colors.outlineVariant),
+                            itemBuilder: (context, index) {
+                              final device = devices[index];
+                              return ListTile(
+                                leading: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: colors.primaryContainer,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    _getCategoryIcon(
+                                        _getDeviceModelCategory(device)),
+                                    color: colors.primary,
+                                  ),
+                                ),
+                                title: Text(
+                                  device.modelDisplayName ??
+                                      device.modelName ??
+                                      translations.unknownDevice,
+                                  style: textTheme.titleSmall,
+                                ),
+                                subtitle: Text(
+                                  device.identifier ?? '',
+                                  style: textTheme.bodySmall,
+                                ),
+                                trailing: Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: colors.outline,
+                                ),
+                                onTap: () =>
+                                    Navigator.of(dialogContext).pop(device),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  omron.DeviceCategory _getDeviceModelCategory(omron.DeviceModel device) {
+    return omron.DeviceCategory.fromValue(int.tryParse(device.category) ?? 1);
+  }
+
+  ColorScheme _buildColorScheme(SmHealthSettingsThemeData settingsTheme) {
+    return ColorScheme.light(
+      primary: settingsTheme.primaryColor,
+      onPrimary: Colors.white,
+      primaryContainer: settingsTheme.primarySoftColor,
+      onPrimaryContainer: settingsTheme.textColor,
+      surface: settingsTheme.backgroundColor,
+      onSurface: settingsTheme.textColor,
+      surfaceContainer: settingsTheme.cardColor,
+      surfaceContainerHighest: settingsTheme.chipColor,
+      onSurfaceVariant: settingsTheme.secondaryTextColor,
+      outline: settingsTheme.secondaryTextColor,
+      outlineVariant: settingsTheme.borderColor,
+      error: settingsTheme.dangerColor,
+    );
+  }
+
+  TextTheme _buildTextTheme(SmHealthSettingsThemeData settingsTheme) {
+    return TextTheme(
+      titleLarge: settingsTheme.resolvedTitleTextStyle,
+      titleMedium: settingsTheme.resolvedItemTitleTextStyle,
+      titleSmall: settingsTheme.resolvedItemTitleTextStyle.copyWith(
+        fontSize: 14,
+      ),
+      bodySmall: settingsTheme.resolvedBodyTextStyle,
+    );
+  }
+
   void _showProgressDialog(String modelName) {
+    final settingsTheme = widget.theme;
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 10),
-                const CircularProgressIndicator(),
-                const SizedBox(height: 24),
-                Text(
-                  "Configuring $modelName",
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  _statusMessage ?? "Processing...",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          );
-        },
+      builder: (context) => Directionality(
+        textDirection: _translations.textDirection,
+        child: AlertDialog(
+          backgroundColor: settingsTheme.cardColor,
+          surfaceTintColor: Colors.transparent,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 10),
+              CircularProgressIndicator(color: settingsTheme.primaryColor),
+              const SizedBox(height: 24),
+              Text(
+                _translations.configuring(modelName),
+                style: settingsTheme.resolvedItemTitleTextStyle,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _statusMessage ?? _translations.processing,
+                textAlign: TextAlign.center,
+                style: settingsTheme.resolvedBodyTextStyle,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -277,22 +452,40 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
   }
 
   Future<void> _deleteDevice(omron.ScannedDevice device) async {
+    final settingsTheme = widget.theme;
+
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Remove Device?'),
-        content: Text(
-            'This will unpair and remove ${device.modelName} from your saved devices.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder: (context) => Directionality(
+        textDirection: _translations.textDirection,
+        child: AlertDialog(
+          backgroundColor: settingsTheme.cardColor,
+          surfaceTintColor: Colors.transparent,
+          title: Text(
+            _translations.removeDeviceQuestion,
+            style: settingsTheme.resolvedTitleTextStyle,
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+          content: Text(
+            _translations.removeDeviceDescription(device.modelName),
+            style: settingsTheme.resolvedBodyTextStyle,
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                _translations.cancel,
+                style: TextStyle(color: settingsTheme.secondaryTextColor),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(
+                _translations.remove,
+                style: TextStyle(color: settingsTheme.dangerColor),
+              ),
+            ),
+          ],
+        ),
       ),
     );
 
@@ -304,70 +497,56 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-    final style = widget.style;
+    final settingsTheme = widget.theme;
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Text(
-          'Omron Devices',
-          style: style.titleTextStyle ??
-              const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  color: Colors.white),
-        ),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          _buildBluetoothStatus(colors),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              style.primaryColor?.withOpacity(0.8) ?? colors.primary,
-              style.secondaryColor?.withOpacity(0.6) ?? colors.tertiary,
-              colors.surface.withOpacity(0.95),
-            ],
-            stops: const [0.0, 0.4, 1.0],
+    return Directionality(
+      textDirection: _translations.textDirection,
+      child: Scaffold(
+        backgroundColor: settingsTheme.backgroundColor,
+        appBar: AppBar(
+          title: Text(
+            _translations.omronDevices,
+            style: settingsTheme.resolvedTitleTextStyle,
           ),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: settingsTheme.backgroundColor,
+          surfaceTintColor: Colors.transparent,
+          iconTheme: IconThemeData(color: settingsTheme.primaryColor),
+          actions: [
+            _buildBluetoothStatus(settingsTheme),
+          ],
         ),
-        child: SafeArea(
+        body: SafeArea(
           bottom: false,
           child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Colors.white))
+              ? Center(
+                  child: CircularProgressIndicator(
+                      color: settingsTheme.primaryColor))
               : _savedDevices.isEmpty
-                  ? _buildEmptyState(colors, style)
-                  : _buildDeviceList(colors, style),
+                  ? _buildEmptyState(settingsTheme)
+                  : _buildDeviceList(settingsTheme),
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addDevice,
-        backgroundColor: Colors.white,
-        foregroundColor: style.primaryColor ?? colors.primary,
-        elevation: 4,
-        highlightElevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        icon: const Icon(Icons.add_rounded, weight: 800),
-        label: const Text(
-          'Add New Device',
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _addDevice,
+          backgroundColor: settingsTheme.primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          highlightElevation: 8,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          icon: const Icon(Icons.add_rounded, weight: 800),
+          label: Text(
+            _translations.addNewDevice,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, letterSpacing: 0.5),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBluetoothStatus(ColorScheme colors) {
+  Widget _buildBluetoothStatus(SmHealthSettingsThemeData settingsTheme) {
     bool isActive = _connectionState != omron.OmronConnectionState.idle &&
         _connectionState != omron.OmronConnectionState.disconnected;
 
@@ -380,28 +559,30 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
           duration: const Duration(milliseconds: 300),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
+            color: settingsTheme.primarySoftColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.3)),
+            border: Border.all(color: settingsTheme.borderColor),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
+              SizedBox(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
-                  color: Colors.greenAccent,
-                  shape: BoxShape.circle,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: settingsTheme.successColor,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
-                _connectionState.statusMessage.toUpperCase(),
-                style: const TextStyle(
+                _getStatusDescription(_connectionState).toUpperCase(),
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
-                  color: Colors.white,
+                  color: settingsTheme.textColor,
                   letterSpacing: 1.0,
                 ),
               ),
@@ -412,7 +593,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
     );
   }
 
-  Widget _buildEmptyState(ColorScheme colors, SmHealthSettingsStyle style) {
+  Widget _buildEmptyState(SmHealthSettingsThemeData settingsTheme) {
     return Center(
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0.0, end: 1.0),
@@ -434,32 +615,32 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
               Container(
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
+                  color: settingsTheme.primarySoftColor,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  border: Border.all(color: settingsTheme.borderColor),
                 ),
                 child: Icon(
                   Icons.bluetooth_searching_rounded,
                   size: 80,
-                  color: Colors.white.withOpacity(0.5),
+                  color: settingsTheme.primaryColor,
                 ),
               ),
               const SizedBox(height: 32),
-              const Text(
-                'No Devices Yet',
-                style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
+              Text(
+                _translations.noDevicesYet,
+                style: settingsTheme.resolvedTitleTextStyle.copyWith(
+                  fontSize: 26,
+                ),
               ),
               const SizedBox(height: 16),
               Text(
-                'Connect your Omron health equipment to start tracking your vitals magically.',
+                _translations.connectOmronEquipment,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 16,
-                    height: 1.5),
+                  color: settingsTheme.secondaryTextColor,
+                  fontSize: 16,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 48),
               SizedBox(
@@ -467,18 +648,18 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
                 child: ElevatedButton(
                   onPressed: _addDevice,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundColor: settingsTheme.primaryColor,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: Colors.white.withOpacity(0.3)),
                     ),
                   ),
-                  child: const Text(
-                    'Pair New Device',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  child: Text(
+                    _translations.pairNewDevice,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                 ),
               ),
@@ -489,7 +670,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
     );
   }
 
-  Widget _buildDeviceList(ColorScheme colors, SmHealthSettingsStyle style) {
+  Widget _buildDeviceList(SmHealthSettingsThemeData settingsTheme) {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       physics: const BouncingScrollPhysics(),
@@ -497,12 +678,12 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 16),
           child: Text(
-            "YOUR EQUIPMENT",
+            _translations.yourEquipment,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.5,
-              color: Colors.white.withOpacity(0.5),
+              color: settingsTheme.secondaryTextColor,
             ),
           ),
         ),
@@ -521,7 +702,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
                 ),
               );
             },
-            child: _buildDeviceCard(device, colors, style),
+            child: _buildDeviceCard(device, settingsTheme),
           );
         }),
         const SizedBox(height: 100), // Space for FAB
@@ -529,24 +710,24 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
     );
   }
 
-  Widget _buildDeviceCard(omron.ScannedDevice device, ColorScheme colors,
-      SmHealthSettingsStyle style) {
+  Widget _buildDeviceCard(
+      omron.ScannedDevice device, SmHealthSettingsThemeData settingsTheme) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
+        color: settingsTheme.cardColor,
+        borderRadius: BorderRadius.circular(settingsTheme.cardBorderRadius),
+        border: Border.all(color: settingsTheme.borderColor),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.06),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(settingsTheme.cardBorderRadius),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -559,12 +740,12 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: settingsTheme.primarySoftColor,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Icon(
                       _getCategoryIcon(device.deviceCategory),
-                      color: Colors.white,
+                      color: settingsTheme.primaryColor,
                       size: 32,
                     ),
                   ),
@@ -574,27 +755,24 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          device.modelName ?? 'Unknown Device',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: Colors.white,
-                          ),
+                          device.modelName ?? _translations.unknownDevice,
+                          style: settingsTheme.resolvedItemTitleTextStyle,
                         ),
                         const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: settingsTheme.chipColor,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            'SN: ${device.localName ?? "N/A"}',
+                            _translations.serialNumber(
+                                device.localName ?? _translations.notAvailable),
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white.withOpacity(0.8),
+                              color: settingsTheme.secondaryTextColor,
                             ),
                           ),
                         ),
@@ -604,14 +782,17 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
                   Container(
                     margin: const EdgeInsets.only(left: 8),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.1),
+                      color: settingsTheme.dangerSoftColor,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.delete_sweep_rounded,
-                          color: Colors.redAccent, size: 24),
+                      icon: Icon(
+                        Icons.delete_sweep_rounded,
+                        color: settingsTheme.dangerColor,
+                        size: 24,
+                      ),
                       onPressed: () => _deleteDevice(device),
-                      tooltip: "Remove device",
+                      tooltip: _translations.removeDevice,
                     ),
                   ),
                 ],
