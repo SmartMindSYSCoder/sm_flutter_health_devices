@@ -533,7 +533,7 @@ class SmHealthDevices {
         if (measurementType == MeasurementType.bloodPressure) {
           return await _lepu.stopBP();
         } else if (measurementType == MeasurementType.weight) {
-          return await _lepu.stopWeightScan();
+          return await _lepu.disposeWeight();
         } else {
           // For SpO2 and Temperature, Lepu uses dispose to clear connections/scanning
           await _lepu.dispose();

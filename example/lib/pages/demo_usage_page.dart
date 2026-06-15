@@ -591,6 +591,36 @@ class _DemoUsagePageState extends State<DemoUsagePage>
               ),
             ),
           ],
+          if (event.vitalResult != null && event.vitalResult!.hasData) ...[
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.blue.shade100),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  if (event.vitalResult!.weight != null)
+                    _buildMetricRow("Current Weight", "${event.vitalResult!.weight}", "kg"),
+                  if (event.vitalResult!.spo2 != null)
+                    _buildMetricRow("SpO2", "${event.vitalResult!.spo2}", "%"),
+                  if (event.vitalResult!.heartRate != null)
+                    _buildMetricRow("Heart Rate", "${event.vitalResult!.heartRate}", "bpm"),
+                  if (event.vitalResult!.temperature != null)
+                    _buildMetricRow("Temperature", "${event.vitalResult!.temperature}", "°C"),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 40),
           ElevatedButton(
             onPressed: onCancel,

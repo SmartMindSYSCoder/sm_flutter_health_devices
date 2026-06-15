@@ -96,6 +96,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   bool _hasReachedSuccess = false; // Lock success state
   String? _errorMessage;
   HealthEventData? _lastEvent;
+  Future<void>? _activeStopFuture;
 
   // Resolved provider
   late DeviceProvider _activeProvider;
@@ -132,6 +133,11 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
 
   Future<void> _initAndStart() async {
     debugPrint('SmHealthDeviceWidget: _initAndStart called');
+    
+    // Await any pending stop operation to prevent scanner registration conflicts
+    await _stopActiveMeasurement();
+    _activeStopFuture = null;
+
     setState(() {
       _isInInitState = false;
       _isInitializing = true;
@@ -429,6 +435,12 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       return;
     }
 
+    // If we've already reached success, ignore all further events
+    // This prevents returning to stateBuilder or errorBuilder when device disconnects
+    if (_hasReachedSuccess) {
+      return;
+    }
+
     debugPrint(
         'SmHealthDeviceWidget: Received event from ${event.provider} - State: ${event.connectionState}, HasError: ${event.hasError}, Msg: ${event.message}');
 
@@ -447,12 +459,6 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     if (event.hasError || event.connectionState == HealthConnectionState.error) {
       debugPrint('SmHealthDeviceWidget: Error detected in event: ${event.message}');
       _setError(event.message);
-      return;
-    }
-
-    // If we've already reached success, ignore all further events
-    // This prevents returning to stateBuilder when device disconnects
-    if (_hasReachedSuccess) {
       return;
     }
 
@@ -490,6 +496,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   void _setError(String? message) {
     if (!mounted) return;
     debugPrint('SmHealthDeviceWidget: Transitioning to ERROR state: $message');
+    _stopActiveMeasurement();
     setState(() {
       _errorMessage = message ?? 'An error occurred';
       _isScanning = false;
@@ -506,18 +513,19 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     super.dispose();
   }
 
-  void _stopActiveMeasurement() {
-    if (_hasStopped) return;
+  Future<void> _stopActiveMeasurement() {
+    if (_hasStopped) return _activeStopFuture ?? Future.value();
     _hasStopped = true;
 
-    try {
-      _smHealthDevices.stopMeasurement(
-        provider: _activeProvider,
-        measurementType: widget.measurementType,
-      );
-    } catch (e) {
+    _activeStopFuture = _smHealthDevices.stopMeasurement(
+      provider: _activeProvider,
+      measurementType: widget.measurementType,
+    ).catchError((e) {
       debugPrint('SmHealthDeviceWidget: Error stopping measurement: $e');
-    }
+      return false;
+    });
+
+    return _activeStopFuture!;
   }
 
   @override
@@ -669,11 +677,16 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     }
   }
 
-  void _retryMeasurement() {
+  Future<void> _retryMeasurement() async {
+    // Await any pending stop operation to prevent scanner registration conflicts
+    await _stopActiveMeasurement();
+    _activeStopFuture = null;
+
     setState(() {
       _lastEvent = null;
       _errorMessage = null;
       _hasReachedSuccess = false; // Reset success flag
+      _hasStopped = false; // Reset stopped flag for retry
     });
     // Restart flow
     _startMeasurementFlow();
