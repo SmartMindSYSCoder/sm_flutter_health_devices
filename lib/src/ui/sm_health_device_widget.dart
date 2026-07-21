@@ -54,6 +54,12 @@ class SmHealthDeviceWidget extends StatefulWidget {
   final Widget Function(BuildContext context, String errorMessage,
       VoidCallback onRetry, VoidCallback onCancel) errorBuilder;
 
+  /// Optional builder to customize the retry view.
+  /// If provided, this view is displayed when retry is clicked/triggered.
+  /// If null, falls back to the default measurement state view.
+  final Widget Function(BuildContext context, VoidCallback onRetry,
+      VoidCallback onCancel)? retryBuilder;
+
   /// Optional custom AppBar. If provided, overrides the default AppBar.
   final PreferredSizeWidget? appBar;
 
@@ -64,19 +70,20 @@ class SmHealthDeviceWidget extends StatefulWidget {
   final SmHealthInitConfig initConfig;
 
   const SmHealthDeviceWidget({
-    Key? key,
+    super.key,
     required this.measurementType,
     required this.onResult,
     required this.stateBuilder,
     required this.successBuilder,
     required this.errorBuilder,
     this.initBuilder,
+    this.retryBuilder,
     this.onError,
     this.onCancel,
     this.appBar,
     this.uiConfig = const SmHealthUiConfig(),
     this.initConfig = const SmHealthInitConfig(),
-  }) : super(key: key);
+  });
 
   @override
   State<SmHealthDeviceWidget> createState() => _SmHealthDeviceWidgetState();
@@ -94,6 +101,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   bool _isMeasuring = false;
   bool _hasStopped = false;
   bool _hasReachedSuccess = false; // Lock success state
+  bool _isRetrying = false;
   String? _errorMessage;
   HealthEventData? _lastEvent;
   Future<void>? _activeStopFuture;
@@ -192,6 +200,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         config: HealthDevicesConfig(
           fitrusApiKey: fitrusApiKey,
           omronApiKey: omronApiKey,
+          timeout: widget.initConfig.timeout,
         ),
       );
       if (!initSuccess) {
@@ -239,11 +248,16 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     // Call specific start method
     try {
       if (provider == DeviceProvider.raycome) {
-        _smHealthDevices.readBloodPressure(provider: DeviceProvider.raycome);
+        _smHealthDevices.readBloodPressure(
+          provider: DeviceProvider.raycome,
+          timeout: widget.initConfig.timeout,
+        );
       } else if (provider == DeviceProvider.omron) {
         _startOmronFlow();
       } else if (provider == DeviceProvider.accucheck) {
-        _smHealthDevices.readGlucose();
+        _smHealthDevices.readGlucose(
+          timeout: widget.initConfig.timeout,
+        );
       } else if (provider == DeviceProvider.fitrus) {
         // Handle Fitrus measurement via unified method
         if (widget.measurementType == MeasurementType.bodyComposition &&
@@ -255,6 +269,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
             weightKg: widget.initConfig.userProfile!.weightKg,
             gender: widget.initConfig.userProfile!.gender,
             birthDate: widget.initConfig.userProfile!.birthDate,
+            timeout: widget.initConfig.timeout,
           );
         } else {
           _errorMessage =
@@ -322,7 +337,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       } else if (deviceModel.deviceIdentifier != null) {
         scannedDevice = await _smHealthDevices.scanOmronBleDevice(
           deviceIdentifier: deviceModel.deviceIdentifier!,
-          timeout: const Duration(seconds: 30),
+          timeout: widget.initConfig.timeout,
         );
       }
 
@@ -355,21 +370,36 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     switch (widget.measurementType) {
       case MeasurementType.bloodPressure:
         _smHealthDevices.readBloodPressure(
-            provider: DeviceProvider.omron, omronDevice: device);
+          provider: DeviceProvider.omron,
+          omronDevice: device,
+          timeout: widget.initConfig.timeout,
+        );
         break;
       case MeasurementType.weight:
         _smHealthDevices.readWeight(
-            provider: DeviceProvider.omron, omronDevice: device);
+          provider: DeviceProvider.omron,
+          omronDevice: device,
+          timeout: widget.initConfig.timeout,
+        );
         break;
       case MeasurementType.activity:
-        _smHealthDevices.readActivity(device: device);
+        _smHealthDevices.readActivity(
+          device: device,
+          timeout: widget.initConfig.timeout,
+        );
         break;
       case MeasurementType.spo2:
         _smHealthDevices.readSpo2(
-            provider: DeviceProvider.omron, omronDevice: device);
+          provider: DeviceProvider.omron,
+          omronDevice: device,
+          timeout: widget.initConfig.timeout,
+        );
         break;
       case MeasurementType.temperature:
-        _smHealthDevices.readTemperature(provider: DeviceProvider.omron);
+        _smHealthDevices.readTemperature(
+          provider: DeviceProvider.omron,
+          timeout: widget.initConfig.timeout,
+        );
         break;
       default:
         _setError("Measurement type not implemented for Omron yet.");
@@ -406,18 +436,30 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   void _dispatchMeasurementCommand() {
     switch (widget.measurementType) {
       case MeasurementType.bloodPressure:
-        _smHealthDevices.readBloodPressure(provider: _activeProvider);
+        _smHealthDevices.readBloodPressure(
+          provider: _activeProvider,
+          timeout: widget.initConfig.timeout,
+        );
         break;
       case MeasurementType.weight:
-        _smHealthDevices.readWeight(provider: _activeProvider);
+        _smHealthDevices.readWeight(
+          provider: _activeProvider,
+          timeout: widget.initConfig.timeout,
+        );
         break;
       case MeasurementType.spo2:
-        _smHealthDevices.readSpo2(provider: _activeProvider);
+        _smHealthDevices.readSpo2(
+          provider: _activeProvider,
+          timeout: widget.initConfig.timeout,
+        );
         break;
       case MeasurementType.temperature:
         if (_activeProvider == DeviceProvider.lepu ||
             _activeProvider == DeviceProvider.omron) {
-          _smHealthDevices.readTemperature(provider: _activeProvider);
+          _smHealthDevices.readTemperature(
+            provider: _activeProvider,
+            timeout: widget.initConfig.timeout,
+          );
         }
         break;
 
@@ -502,6 +544,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       _isScanning = false;
       _isConnecting = false;
       _isMeasuring = false;
+      _isRetrying = false;
     });
     widget.onError?.call(_errorMessage);
   }
@@ -584,12 +627,26 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       );
     }
 
-    // 1. Error State
+    // 1. Retry State (if retryBuilder provided and user triggered retry)
+    if (_isRetrying && widget.retryBuilder != null) {
+      return widget.retryBuilder!(
+        context,
+        () {
+          setState(() {
+            _isRetrying = false;
+          });
+          _retryMeasurement();
+        },
+        _handleBackAttempt,
+      );
+    }
+
+    // 2. Error State
     if (_errorMessage != null) {
       return widget.errorBuilder(
         context,
         _errorMessage!,
-        _initAndStart, // On Retry
+        _retryMeasurement, // On Retry
         _handleBackAttempt, // On Cancel
       );
     }
@@ -687,6 +744,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       _errorMessage = null;
       _hasReachedSuccess = false; // Reset success flag
       _hasStopped = false; // Reset stopped flag for retry
+      _isRetrying = true;
     });
     // Restart flow
     _startMeasurementFlow();

@@ -35,9 +35,13 @@ class HealthDevicesConfig {
   /// API key for Omron (required for SDK initialization)
   final String? omronApiKey;
 
+  /// Optional timeout duration for measurement/scan operations.
+  final Duration? timeout;
+
   const HealthDevicesConfig({
     this.fitrusApiKey,
     this.omronApiKey,
+    this.timeout,
   });
 }
 
@@ -92,7 +96,43 @@ class SmHealthDevices {
   StreamSubscription? _omronSubscription;
   StreamSubscription? _raycomeSubscription;
 
+  // Active measurement timer
+  Timer? _activeMeasurementTimer;
+
+  void _clearMeasurementTimer() {
+    _activeMeasurementTimer?.cancel();
+    _activeMeasurementTimer = null;
+  }
+
+  void _startMeasurementTimer({
+    required DeviceProvider provider,
+    required MeasurementType measurementType,
+    Duration? timeout,
+  }) {
+    _clearMeasurementTimer();
+
+    final effectiveTimeout =
+        timeout ?? _config?.timeout ?? const Duration(seconds: 30);
+
+    debugPrint(
+        'SmHealthDevices: Measurement timer started for $provider ($measurementType) with timeout ${effectiveTimeout.inSeconds}s');
+
+    _activeMeasurementTimer = Timer(effectiveTimeout, () async {
+      debugPrint(
+          'SmHealthDevices: Measurement timed out after ${effectiveTimeout.inSeconds}s for $provider ($measurementType)');
+      await stopMeasurement(
+          provider: provider, measurementType: measurementType);
+      _eventController?.add(HealthEventData.error(
+        provider: provider,
+        measurementType: measurementType,
+        message:
+            'Measurement timed out after ${effectiveTimeout.inSeconds} seconds.',
+      ));
+    });
+  }
+
   // Configuration
+  HealthDevicesConfig? _config;
   bool _isInitialized = false;
   bool _isFitrusInitialized = false;
   bool _isFitrusMeasuring = false; // Mutex to prevent concurrent measurements
@@ -100,14 +140,26 @@ class SmHealthDevices {
   String? _fitrusApiKey;
   HealthConnectionState _lastFitrusState = HealthConnectionState.disconnected;
 
+  /// Check if Fitrus is currently measuring
+  bool get isFitrusMeasuring => _isFitrusMeasuring;
+
+  /// Get the last recorded Fitrus connection state
+  HealthConnectionState get lastFitrusState => _lastFitrusState;
+
   /// Check if the plugin is initialized
   bool get isInitialized => _isInitialized;
+
+  /// Get the active configuration
+  HealthDevicesConfig? get config => _config;
 
   // ============================================================
   // INITIALIZATION
   // ============================================================
 
   Future<bool> init({HealthDevicesConfig? config}) async {
+    if (config != null) {
+      _config = config;
+    }
     if (_isInitialized) return true;
 
     try {
@@ -162,9 +214,16 @@ class SmHealthDevices {
         final healthEvent = LepuAdapter.toHealthEvent(lepuEvent);
         debugPrint(
             'SmHealthDevices: Broadcasting Lepu HealthEvent - state: ${healthEvent.connectionState}');
+
+        if (healthEvent.connectionState == HealthConnectionState.completed ||
+            healthEvent.connectionState == HealthConnectionState.error) {
+          _clearMeasurementTimer();
+        }
+
         _eventController?.add(healthEvent);
       },
       onError: (error) {
+        _clearMeasurementTimer();
         _eventController?.add(HealthEventData.error(
           provider: DeviceProvider.lepu,
           message: error.toString(),
@@ -191,6 +250,7 @@ class SmHealthDevices {
         if (healthEvent.connectionState == HealthConnectionState.completed ||
             healthEvent.connectionState == HealthConnectionState.error) {
           _isFitrusMeasuring = false;
+          _clearMeasurementTimer();
           debugPrint(
               'SmHealthDevices: Fitrus measurement finished, clearing mutex flag');
         }
@@ -199,6 +259,7 @@ class SmHealthDevices {
       },
       onError: (error) {
         _isFitrusMeasuring = false;
+        _clearMeasurementTimer();
         debugPrint('SmHealthDevices: Fitrus error, clearing mutex flag');
         _eventController?.add(HealthEventData.error(
           provider: DeviceProvider.fitrus,
@@ -219,9 +280,14 @@ class SmHealthDevices {
       (state) {
         debugPrint('SmHealthDevices: Omron Connection State - $state');
         final healthEvent = OmronAdapter.toHealthEvent(state);
+        if (healthEvent.connectionState == HealthConnectionState.completed ||
+            healthEvent.connectionState == HealthConnectionState.error) {
+          _clearMeasurementTimer();
+        }
         _eventController?.add(healthEvent);
       },
       onError: (error) {
+        _clearMeasurementTimer();
         debugPrint('SmHealthDevices: Omron Error - $error');
         _eventController?.add(HealthEventData.error(
           provider: DeviceProvider.omron,
@@ -242,9 +308,14 @@ class SmHealthDevices {
       (state) {
         debugPrint('SmHealthDevices: Raycome State - ${state.displayStatus}');
         final healthEvent = RaycomeAdapter.toHealthEvent(state);
+        if (healthEvent.connectionState == HealthConnectionState.completed ||
+            healthEvent.connectionState == HealthConnectionState.error) {
+          _clearMeasurementTimer();
+        }
         _eventController?.add(healthEvent);
       },
       onError: (error) {
+        _clearMeasurementTimer();
         debugPrint('SmHealthDevices: Raycome Error - $error');
         _eventController?.add(HealthEventData.error(
           provider: DeviceProvider.raycome,
@@ -269,6 +340,7 @@ class SmHealthDevices {
   Future<HealthVitalResult?> readWeight({
     DeviceProvider? provider,
     omron.ScannedDevice? omronDevice,
+    Duration? timeout,
   }) async {
     final activeProvider = provider ??
         settingsManager.getPreferredProvider(MeasurementType.weight);
@@ -284,7 +356,7 @@ class SmHealthDevices {
 
     switch (activeProvider) {
       case DeviceProvider.lepu:
-        return await _readLepuWeight();
+        return await _readLepuWeight(timeout: timeout);
       case DeviceProvider.omron:
         return await _readOmronWeight(omronDevice);
       default:
@@ -292,11 +364,16 @@ class SmHealthDevices {
     }
   }
 
-  Future<HealthVitalResult?> _readLepuWeight() async {
+  Future<HealthVitalResult?> _readLepuWeight({Duration? timeout}) async {
     try {
       _ensureLepuSubscription();
+      _startMeasurementTimer(
+        provider: DeviceProvider.lepu,
+        measurementType: MeasurementType.weight,
+        timeout: timeout,
+      );
       // Inject immediate scanning status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.weight,
         connectionState: HealthConnectionState.scanning,
@@ -306,6 +383,7 @@ class SmHealthDevices {
       // Weight data comes through the event stream
       return null; // Data will be received via getEvents()
     } catch (e) {
+      _clearMeasurementTimer();
       _eventController?.add(HealthEventData.error(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.weight,
@@ -332,7 +410,7 @@ class SmHealthDevices {
     try {
       _ensureOmronSubscription();
       // Inject immediate connecting status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.weight,
         connectionState: HealthConnectionState.connecting,
@@ -378,6 +456,7 @@ class SmHealthDevices {
   Future<HealthVitalResult?> readBloodPressure({
     DeviceProvider? provider,
     omron.ScannedDevice? omronDevice,
+    Duration? timeout,
   }) async {
     final activeProvider = provider ??
         settingsManager.getPreferredProvider(MeasurementType.bloodPressure);
@@ -393,21 +472,26 @@ class SmHealthDevices {
 
     switch (activeProvider) {
       case DeviceProvider.lepu:
-        return await _readLepuBloodPressure();
+        return await _readLepuBloodPressure(timeout: timeout);
       case DeviceProvider.omron:
         return await _readOmronBloodPressure(omronDevice);
       case DeviceProvider.raycome:
-        return await _readRaycomeBloodPressure();
+        return await _readRaycomeBloodPressure(timeout: timeout);
       default:
         return null;
     }
   }
 
-  Future<HealthVitalResult?> _readLepuBloodPressure() async {
+  Future<HealthVitalResult?> _readLepuBloodPressure({Duration? timeout}) async {
     try {
       _ensureLepuSubscription();
+      _startMeasurementTimer(
+        provider: DeviceProvider.lepu,
+        measurementType: MeasurementType.bloodPressure,
+        timeout: timeout,
+      );
       // Inject immediate scanning status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.bloodPressure,
         connectionState: HealthConnectionState.scanning,
@@ -418,6 +502,7 @@ class SmHealthDevices {
       // BP data comes through the event stream
       return null;
     } catch (e) {
+      _clearMeasurementTimer();
       _eventController?.add(HealthEventData.error(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.bloodPressure,
@@ -444,7 +529,7 @@ class SmHealthDevices {
     try {
       _ensureOmronSubscription();
       // Inject immediate connecting status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.bloodPressure,
         connectionState: HealthConnectionState.connecting,
@@ -479,9 +564,15 @@ class SmHealthDevices {
     }
   }
 
-  Future<HealthVitalResult?> _readRaycomeBloodPressure() async {
+  Future<HealthVitalResult?> _readRaycomeBloodPressure(
+      {Duration? timeout}) async {
     try {
       _ensureRaycomeSubscription();
+      _startMeasurementTimer(
+        provider: DeviceProvider.raycome,
+        measurementType: MeasurementType.bloodPressure,
+        timeout: timeout,
+      );
 
       // Initialize if needed
       await _raycome.init();
@@ -492,6 +583,7 @@ class SmHealthDevices {
       // Data comes through the event stream
       return null;
     } catch (e) {
+      _clearMeasurementTimer();
       return HealthVitalResult.error(
         provider: DeviceProvider.raycome,
         measurementType: MeasurementType.bloodPressure,
@@ -575,6 +667,7 @@ class SmHealthDevices {
   /// [provider] - Optional: Device provider. If null, uses setting from SettingsManager.
   Future<HealthVitalResult?> readTemperature({
     DeviceProvider? provider,
+    Duration? timeout,
   }) async {
     final activeProvider = provider ??
         settingsManager.getPreferredProvider(MeasurementType.temperature);
@@ -590,7 +683,7 @@ class SmHealthDevices {
 
     switch (activeProvider) {
       case DeviceProvider.lepu:
-        return await _readLepuTemperature();
+        return await _readLepuTemperature(timeout: timeout);
       case DeviceProvider.omron:
         return await _readOmronTemperature();
       default:
@@ -598,11 +691,16 @@ class SmHealthDevices {
     }
   }
 
-  Future<HealthVitalResult?> _readLepuTemperature() async {
+  Future<HealthVitalResult?> _readLepuTemperature({Duration? timeout}) async {
     try {
       _ensureLepuSubscription();
+      _startMeasurementTimer(
+        provider: DeviceProvider.lepu,
+        measurementType: MeasurementType.temperature,
+        timeout: timeout,
+      );
       // Inject immediate scanning status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.temperature,
         connectionState: HealthConnectionState.scanning,
@@ -612,6 +710,7 @@ class SmHealthDevices {
       // Temperature data comes through the event stream
       return null;
     } catch (e) {
+      _clearMeasurementTimer();
       _eventController?.add(HealthEventData.error(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.temperature,
@@ -629,7 +728,7 @@ class SmHealthDevices {
     try {
       _ensureOmronSubscription();
       // Inject immediate recording status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.temperature,
         connectionState: HealthConnectionState.recording,
@@ -675,6 +774,7 @@ class SmHealthDevices {
   Future<HealthVitalResult?> readSpo2({
     DeviceProvider? provider,
     omron.ScannedDevice? omronDevice,
+    Duration? timeout,
   }) async {
     final activeProvider =
         provider ?? settingsManager.getPreferredProvider(MeasurementType.spo2);
@@ -689,7 +789,7 @@ class SmHealthDevices {
 
     switch (activeProvider) {
       case DeviceProvider.lepu:
-        return await _readLepuSpo2();
+        return await _readLepuSpo2(timeout: timeout);
       case DeviceProvider.omron:
         return await _readOmronSpo2(omronDevice);
       default:
@@ -697,11 +797,16 @@ class SmHealthDevices {
     }
   }
 
-  Future<HealthVitalResult?> _readLepuSpo2() async {
+  Future<HealthVitalResult?> _readLepuSpo2({Duration? timeout}) async {
     try {
       _ensureLepuSubscription();
+      _startMeasurementTimer(
+        provider: DeviceProvider.lepu,
+        measurementType: MeasurementType.spo2,
+        timeout: timeout,
+      );
       // Inject immediate scanning status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.spo2,
         connectionState: HealthConnectionState.scanning,
@@ -711,6 +816,7 @@ class SmHealthDevices {
       // SpO2 data comes through the event stream
       return null;
     } catch (e) {
+      _clearMeasurementTimer();
       _eventController?.add(HealthEventData.error(
         provider: DeviceProvider.lepu,
         measurementType: MeasurementType.spo2,
@@ -736,7 +842,7 @@ class SmHealthDevices {
     try {
       _ensureOmronSubscription();
       // Inject immediate connecting status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.spo2,
         connectionState: HealthConnectionState.connecting,
@@ -798,7 +904,7 @@ class SmHealthDevices {
     try {
       debugPrint('SmHealthDevices: Starting Fitrus measurement...');
       // Inject immediate connecting status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.fitrus,
         measurementType: MeasurementType.bodyComposition,
         connectionState: HealthConnectionState.connecting,
@@ -850,12 +956,18 @@ class SmHealthDevices {
     required double weightKg,
     required Gender gender,
     required String birthDate, // Format: yyyyMMdd
+    Duration? timeout,
   }) async {
     _isFitrusMeasuring = true;
 
     try {
       // Ensure we are listening to events!
       _ensureFitrusSubscription();
+      _startMeasurementTimer(
+        provider: DeviceProvider.fitrus,
+        measurementType: MeasurementType.bodyComposition,
+        timeout: timeout,
+      );
 
       // Optional short delay for extra stability
       debugPrint('SmHealthDevices: Waiting 500ms for service stability...');
@@ -864,7 +976,7 @@ class SmHealthDevices {
       // Start measurement
       debugPrint('SmHealthDevices: Starting BFP measurement...');
       // Inject immediate measuring status
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.fitrus,
         measurementType: MeasurementType.bodyComposition,
         connectionState: HealthConnectionState.measuring,
@@ -906,10 +1018,11 @@ class SmHealthDevices {
   /// Returns null if no device found or no records available.
   Future<HealthVitalResult?> readGlucose({
     DeviceProvider? provider,
-    Duration scanTimeout = const Duration(seconds: 15),
-    Duration connectTimeout = const Duration(seconds: 20),
-    Duration readTimeout = const Duration(seconds: 15),
+    Duration? timeout,
   }) async {
+    final effectiveTimeout =
+        timeout ?? _config?.timeout ?? const Duration(seconds: 30);
+
     final activeProvider = provider ??
         settingsManager.getPreferredProvider(MeasurementType.glucometer);
 
@@ -962,7 +1075,7 @@ class SmHealthDevices {
 
     try {
       // Emit initial scanning event immediately
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.accucheck,
         measurementType: MeasurementType.glucometer,
         connectionState: HealthConnectionState.scanning,
@@ -970,9 +1083,9 @@ class SmHealthDevices {
       ));
 
       final glucoseLevel = await _accuCheck.readLastRecord(
-        scanTimeout: scanTimeout,
-        connectTimeout: connectTimeout,
-        readTimeout: readTimeout,
+        scanTimeout: effectiveTimeout,
+        connectTimeout: effectiveTimeout,
+        readTimeout: effectiveTimeout,
       );
 
       if (glucoseLevel == null) {
@@ -1021,6 +1134,7 @@ class SmHealthDevices {
   /// [device] - The saved Omron activity tracker device
   Future<HealthVitalResult?> readActivity({
     required omron.ScannedDevice device,
+    Duration? timeout,
   }) async {
     return await _readOmronActivity(device);
   }
@@ -1104,10 +1218,13 @@ class SmHealthDevices {
   /// Scan for a specific Omron BLE device model
   Future<omron.ScannedDevice?> scanOmronBleDevice({
     required omron.DeviceIdentifier deviceIdentifier,
-    Duration timeout = const Duration(seconds: 30),
+    Duration? timeout,
   }) async {
+    final effectiveTimeout =
+        timeout ?? _config?.timeout ?? const Duration(seconds: 30);
+
     // Inject scanning status
-    _eventController?.add(HealthEventData(
+    _eventController?.add(const HealthEventData(
       provider: DeviceProvider.omron,
       // Use unknown or general for scanning phase if type is not strictly known here
       measurementType: MeasurementType.unknown,
@@ -1117,7 +1234,7 @@ class SmHealthDevices {
 
     final device = await _omron.scanBleDevice(
       deviceIdentifier: deviceIdentifier,
-      timeout: timeout,
+      timeout: effectiveTimeout,
     );
 
     if (device == null) {
@@ -1134,7 +1251,7 @@ class SmHealthDevices {
   Future<bool> pairOmronBleDevice({
     required omron.ScannedDevice device,
   }) async {
-    _eventController?.add(HealthEventData(
+    _eventController?.add(const HealthEventData(
       provider: DeviceProvider.omron,
       measurementType: MeasurementType.unknown,
       connectionState: HealthConnectionState.connecting,
@@ -1144,14 +1261,14 @@ class SmHealthDevices {
     final success = await _omron.pairBleDevice(device: device);
 
     if (success) {
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.unknown,
         connectionState: HealthConnectionState.connected,
         message: 'Omron device paired successfully',
       ));
     } else {
-      _eventController?.add(HealthEventData(
+      _eventController?.add(const HealthEventData(
         provider: DeviceProvider.omron,
         measurementType: MeasurementType.unknown,
         connectionState: HealthConnectionState.error,

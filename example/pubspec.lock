@@ -540,7 +540,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.0.3"
+    version: "1.0.6"
   sm_lepu:
     dependency: transitive
     description:
@@ -564,10 +564,10 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "87e39142e17572a105a1c210149864e6ddf0cb1a"
+      resolved-ref: a0795d9ddc54f7d95c146ac4c0acc2d389691291
       url: "https://github.com/SmartMindSYSCoder/sm_raycome.git"
     source: git
-    version: "0.0.1"
+    version: "0.0.2"
   source_span:
     dependency: transitive
     description:

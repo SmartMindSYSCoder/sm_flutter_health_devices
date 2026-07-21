@@ -128,6 +128,7 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                 initConfig: const SmHealthInitConfig(
                     fitrusApiKey: _kFitrusApiKey,
                     omronApiKey: _kOmronApiKey,
+                    timeout: Duration(seconds: 5),
                     lang: SmHealthSettingsLanguage.ar),
                 theme: const SmHealthSettingsThemeData()),
             tooltip: 'Settings',
@@ -415,6 +416,7 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                           onCancel: () => Navigator.pop(dialogContext),
                           initConfig: SmHealthInitConfig(
                             autoSave: false,
+                            timeout: const Duration(seconds: 5),
                             fitrusApiKey:
                                 option.type == MeasurementType.bodyComposition
                                     ? _kFitrusApiKey
@@ -437,6 +439,7 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                           successBuilder: _buildSuccess,
                           errorBuilder: _buildError,
                           initBuilder: _buildInit,
+                          // retryBuilder: ,
                         ),
                       ),
                     ),
@@ -610,13 +613,16 @@ class _DemoUsagePageState extends State<DemoUsagePage>
               child: Column(
                 children: [
                   if (event.vitalResult!.weight != null)
-                    _buildMetricRow("Current Weight", "${event.vitalResult!.weight}", "kg"),
+                    _buildMetricRow(
+                        "Current Weight", "${event.vitalResult!.weight}", "kg"),
                   if (event.vitalResult!.spo2 != null)
                     _buildMetricRow("SpO2", "${event.vitalResult!.spo2}", "%"),
                   if (event.vitalResult!.heartRate != null)
-                    _buildMetricRow("Heart Rate", "${event.vitalResult!.heartRate}", "bpm"),
+                    _buildMetricRow(
+                        "Heart Rate", "${event.vitalResult!.heartRate}", "bpm"),
                   if (event.vitalResult!.temperature != null)
-                    _buildMetricRow("Temperature", "${event.vitalResult!.temperature}", "°C"),
+                    _buildMetricRow("Temperature",
+                        "${event.vitalResult!.temperature}", "°C"),
                 ],
               ),
             ),

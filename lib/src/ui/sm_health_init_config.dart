@@ -27,6 +27,9 @@ class SmHealthInitConfig {
   /// Defaults to [SmHealthSettingsLanguage.en].
   final SmHealthSettingsLanguage lang;
 
+  /// Optional timeout for measurement/scan operations before timing out.
+  final Duration? timeout;
+
   const SmHealthInitConfig({
     this.autoStartScan = true,
     this.showResultDialog = false,
@@ -35,5 +38,6 @@ class SmHealthInitConfig {
     this.fitrusApiKey,
     this.omronApiKey,
     this.lang = SmHealthSettingsLanguage.en,
+    this.timeout,
   });
 }

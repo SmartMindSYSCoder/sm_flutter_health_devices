@@ -170,6 +170,7 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
       config: HealthDevicesConfig(
         fitrusApiKey: widget.initConfig.fitrusApiKey,
         omronApiKey: widget.initConfig.omronApiKey,
+        timeout: widget.initConfig.timeout,
       ),
     )
         .then((_) {

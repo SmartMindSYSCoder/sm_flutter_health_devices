@@ -58,6 +58,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
       config: HealthDevicesConfig(
         fitrusApiKey: widget.initConfig.fitrusApiKey,
         omronApiKey: widget.initConfig.omronApiKey,
+        timeout: widget.initConfig.timeout,
       ),
     );
     _loadDevices();
@@ -180,7 +181,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
             _statusMessage = _translations.scanningFor(deviceModel.modelName));
         scannedDevice = await _healthDevices.scanOmronBleDevice(
           deviceIdentifier: deviceModel.deviceIdentifier!,
-          timeout: const Duration(seconds: 30),
+          timeout: widget.initConfig.timeout,
         );
       }
 
