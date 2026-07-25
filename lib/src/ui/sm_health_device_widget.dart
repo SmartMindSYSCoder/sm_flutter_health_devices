@@ -201,6 +201,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
           fitrusApiKey: fitrusApiKey,
           omronApiKey: omronApiKey,
           timeout: widget.initConfig.timeout,
+          measuringTimeout: widget.initConfig.measuringTimeout,
         ),
       );
       if (!initSuccess) {
