@@ -147,12 +147,16 @@ class SmHealthDevices {
     if (healthEvent.connectionState == HealthConnectionState.completed ||
         healthEvent.connectionState == HealthConnectionState.error) {
       _clearMeasurementTimer();
-    } else if (healthEvent.connectionState == HealthConnectionState.measuring) {
+    } else if (healthEvent.connectionState == HealthConnectionState.measuring ||
+        healthEvent.connectionState == HealthConnectionState.connected ||
+        healthEvent.connectionState == HealthConnectionState.connecting ||
+        healthEvent.isConnected) {
       if (!_isMeasurementTimerExtended && _activeMeasurementTimer != null) {
         _isMeasurementTimerExtended = true;
-        final extendedDuration = _activeMeasuringTimeout ?? const Duration(seconds: 90);
+        final extendedDuration =
+            _activeMeasuringTimeout ?? const Duration(seconds: 90);
         debugPrint(
-            'SmHealthDevices: Device is now measuring. Extending measurement timer for ${healthEvent.provider.name} (${healthEvent.measurementType.name}) to ${extendedDuration.inSeconds}s');
+            'SmHealthDevices: Device connected/measuring. Extending measurement timer for ${healthEvent.provider.name} (${healthEvent.measurementType.name}) to ${extendedDuration.inSeconds}s');
         _activeMeasurementTimer?.cancel();
         _activeMeasurementTimer = Timer(extendedDuration, () async {
           debugPrint(
@@ -369,9 +373,12 @@ class SmHealthDevices {
   ///
   /// [provider] - Optional: Device provider. If null, uses setting from SettingsManager.
   /// [omronDevice] - Required for Omron: the saved ScannedDevice
+  /// [personalInfo] - Optional for Omron: personal info (height, DOB, gender)
+  ///                  for accurate body composition calculations.
   Future<HealthVitalResult?> readWeight({
     DeviceProvider? provider,
     omron.ScannedDevice? omronDevice,
+    omron.PersonalInfo? personalInfo,
     Duration? timeout,
     Duration? measuringTimeout,
   }) async {
@@ -391,7 +398,7 @@ class SmHealthDevices {
       case DeviceProvider.lepu:
         return await _readLepuWeight(timeout: timeout, measuringTimeout: measuringTimeout);
       case DeviceProvider.omron:
-        return await _readOmronWeight(omronDevice);
+        return await _readOmronWeight(omronDevice, personalInfo: personalInfo);
       default:
         return null;
     }
@@ -435,7 +442,9 @@ class SmHealthDevices {
   }
 
   Future<HealthVitalResult?> _readOmronWeight(
-      omron.ScannedDevice? device) async {
+      omron.ScannedDevice? device, {
+      omron.PersonalInfo? personalInfo,
+  }) async {
     if (device == null) {
       return HealthVitalResult.error(
         provider: DeviceProvider.omron,
@@ -453,7 +462,14 @@ class SmHealthDevices {
         connectionState: HealthConnectionState.connecting,
         message: 'Connecting to Omron scale...',
       ));
-      final results = await _omron.transferFromBleDevice(device: device);
+      final results = await _omron.transferFromBleDevice(
+        device: device,
+        options: const omron.TransferOptions(
+          singleUserMode: true,
+          readHistoricalData: true,
+        ),
+        personalInfo: personalInfo,
+      );
       if (results.isNotEmpty) {
         final result = OmronAdapter.toHealthVitalResult(results.last);
 
@@ -653,6 +669,7 @@ class SmHealthDevices {
       } else if (provider == DeviceProvider.omron) {
         await _omronSubscription?.cancel();
         _omronSubscription = null;
+        await _omron.stopManager();
       } else if (provider == DeviceProvider.raycome) {
         await _raycomeSubscription?.cancel();
         _raycomeSubscription = null;
@@ -1076,6 +1093,7 @@ class SmHealthDevices {
   Future<HealthVitalResult?> readGlucose({
     DeviceProvider? provider,
     Duration? timeout,
+    Duration? measuringTimeout,
   }) async {
     final effectiveTimeout =
         timeout ?? _config?.timeout ?? const Duration(seconds: 30);
@@ -1307,6 +1325,7 @@ class SmHealthDevices {
   /// Pair with a specific Omron BLE device
   Future<bool> pairOmronBleDevice({
     required omron.ScannedDevice device,
+    omron.PersonalInfo? personalInfo,
   }) async {
     _eventController?.add(const HealthEventData(
       provider: DeviceProvider.omron,
@@ -1315,7 +1334,10 @@ class SmHealthDevices {
       message: 'Pairing Omron device...',
     ));
 
-    final success = await _omron.pairBleDevice(device: device);
+    final success = await _omron.pairBleDevice(
+      device: device,
+      personalInfo: personalInfo,
+    );
 
     if (success) {
       _eventController?.add(const HealthEventData(

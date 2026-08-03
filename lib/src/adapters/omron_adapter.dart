@@ -20,12 +20,14 @@ class OmronAdapter {
       diastolic: omronResult.diastolic,
       pulse: omronResult.pulse,
       irregularHeartbeat: omronResult.irregularHeartbeat,
-      // Weight
+      // Weight & Body Composition
       weight: _round(omronResult.weight),
       bmi: _round(omronResult.bmi),
+      fatPercentage: _round(omronResult.bodyFatPercentage),
       bodyFatPercentage: _round(omronResult.bodyFatPercentage),
       skeletalMusclePercentage: _round(omronResult.skeletalMusclePercentage),
       visceralFatLevel: omronResult.visceralFatLevel,
+      bmr: omronResult.basalMetabolicRate?.toDouble(),
       basalMetabolicRate: omronResult.basalMetabolicRate,
       bodyAge: omronResult.bodyAge,
       // SpO2

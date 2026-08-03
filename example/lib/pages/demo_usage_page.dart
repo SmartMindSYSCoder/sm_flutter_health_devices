@@ -126,10 +126,12 @@ class _DemoUsagePageState extends State<DemoUsagePage>
             icon: const Icon(Icons.settings),
             onPressed: () => SmHealthSettingsPage.open(context,
                 initConfig: const SmHealthInitConfig(
-                    fitrusApiKey: _kFitrusApiKey,
-                    omronApiKey: _kOmronApiKey,
-                    timeout: Duration(seconds: 5),
-                    lang: SmHealthSettingsLanguage.ar),
+                  fitrusApiKey: _kFitrusApiKey,
+                  omronApiKey: _kOmronApiKey,
+                  lang: SmHealthSettingsLanguage.ar,
+                  timeout: Duration(seconds: 30),
+                  measuringTimeout: Duration(seconds: 30),
+                ),
                 theme: const SmHealthSettingsThemeData()),
             tooltip: 'Settings',
           ),
@@ -416,21 +418,23 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                           onCancel: () => Navigator.pop(dialogContext),
                           initConfig: SmHealthInitConfig(
                             autoSave: false,
-                            timeout: const Duration(seconds: 5),
+                            timeout: const Duration(seconds: 30),
+                            measuringTimeout: const Duration(seconds: 30),
                             fitrusApiKey:
                                 option.type == MeasurementType.bodyComposition
                                     ? _kFitrusApiKey
                                     : null,
                             omronApiKey: _kOmronApiKey,
-                            userProfile:
-                                option.type == MeasurementType.bodyComposition
-                                    ? const SmUserProfile(
-                                        heightCm: 180,
-                                        weightKg: 75,
-                                        gender: Gender.male,
-                                        birthDate: "19900101",
-                                      )
-                                    : null,
+                            userProfile: option.type ==
+                                        MeasurementType.bodyComposition ||
+                                    option.type == MeasurementType.weight
+                                ? const SmUserProfile(
+                                    heightCm: 165,
+                                    weightKg: 0,
+                                    gender: Gender.male,
+                                    birthDate: "19970101",
+                                  )
+                                : null,
                           ),
                           uiConfig: const SmHealthUiConfig(
                             showAppBar: false,
@@ -707,10 +711,34 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                   if (result.heartRate != null)
                     _buildMetricRow("Heart Rate", "${result.heartRate}", "bpm"),
                 ],
-                if (result.fatPercentage != null)
-                  _buildMetricRow("Body Fat", "${result.fatPercentage}", "%"),
+                if (result.fatPercentage != null ||
+                    result.bodyFatPercentage != null)
+                  _buildMetricRow(
+                      "Body Fat",
+                      "${result.fatPercentage ?? result.bodyFatPercentage}",
+                      "%"),
+                if (result.skeletalMusclePercentage != null)
+                  _buildMetricRow("Skeletal Muscle",
+                      "${result.skeletalMusclePercentage}", "%"),
                 if (result.muscleMass != null)
                   _buildMetricRow("Muscle Mass", "${result.muscleMass}", "kg"),
+                if (result.visceralFatLevel != null)
+                  _buildMetricRow("Visceral Fat Level",
+                      "${result.visceralFatLevel}", "level"),
+                if (result.bmr != null || result.basalMetabolicRate != null)
+                  _buildMetricRow(
+                      "BMR",
+                      "${result.bmr?.toInt() ?? result.basalMetabolicRate}",
+                      "kcal"),
+                if (result.bodyAge != null)
+                  _buildMetricRow("Body Age", "${result.bodyAge}", "years"),
+                if (result.waterPercentage != null)
+                  _buildMetricRow(
+                      "Body Water", "${result.waterPercentage}", "%"),
+                if (result.protein != null)
+                  _buildMetricRow("Protein", "${result.protein}", "kg"),
+                if (result.minerals != null)
+                  _buildMetricRow("Minerals", "${result.minerals}", "kg"),
               ],
             ),
           ),

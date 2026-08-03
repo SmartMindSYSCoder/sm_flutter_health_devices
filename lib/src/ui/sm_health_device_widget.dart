@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:sm_omron/sm_omron.dart' as omron;
 
 import '../../sm_flutter_health_devices.dart';
 
@@ -252,12 +253,14 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         _smHealthDevices.readBloodPressure(
           provider: DeviceProvider.raycome,
           timeout: widget.initConfig.timeout,
+          measuringTimeout: widget.initConfig.measuringTimeout,
         );
       } else if (provider == DeviceProvider.omron) {
         _startOmronFlow();
       } else if (provider == DeviceProvider.accucheck) {
         _smHealthDevices.readGlucose(
           timeout: widget.initConfig.timeout,
+          measuringTimeout: widget.initConfig.measuringTimeout,
         );
       } else if (provider == DeviceProvider.fitrus) {
         // Handle Fitrus measurement via unified method
@@ -271,6 +274,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
             gender: widget.initConfig.userProfile!.gender,
             birthDate: widget.initConfig.userProfile!.birthDate,
             timeout: widget.initConfig.timeout,
+            measuringTimeout: widget.initConfig.measuringTimeout,
           );
         } else {
           _errorMessage =
@@ -367,6 +371,35 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     }
   }
 
+  omron.PersonalInfo? _getOmronPersonalInfo() {
+    final profile = widget.initConfig.userProfile;
+    if (profile == null) return null;
+
+    DateTime dob;
+    try {
+      if (profile.birthDate.length == 8) {
+        final year = int.parse(profile.birthDate.substring(0, 4));
+        final month = int.parse(profile.birthDate.substring(4, 6));
+        final day = int.parse(profile.birthDate.substring(6, 8));
+        dob = DateTime(year, month, day);
+      } else {
+        dob = DateTime.parse(profile.birthDate);
+      }
+    } catch (_) {
+      dob = DateTime(1990, 1, 1);
+    }
+
+    return omron.PersonalInfo(
+      heightCm: profile.heightCm,
+      weightKg: profile.weightKg,
+      strideCm: profile.heightCm * 0.415,
+      dateOfBirth: dob,
+      gender: profile.gender == Gender.male
+          ? omron.Gender.male
+          : omron.Gender.female,
+    );
+  }
+
   void _dispatchOmronMeasurement(ScannedDevice device) {
     switch (widget.measurementType) {
       case MeasurementType.bloodPressure:
@@ -377,9 +410,11 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         );
         break;
       case MeasurementType.weight:
+      case MeasurementType.bodyComposition:
         _smHealthDevices.readWeight(
           provider: DeviceProvider.omron,
           omronDevice: device,
+          personalInfo: _getOmronPersonalInfo(),
           timeout: widget.initConfig.timeout,
         );
         break;
@@ -420,6 +455,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       case MeasurementType.bloodPressure:
         return DeviceCategory.bloodPressure;
       case MeasurementType.weight:
+      case MeasurementType.bodyComposition:
         return DeviceCategory.weight;
       case MeasurementType.activity:
         return DeviceCategory.activity;
@@ -440,18 +476,21 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         _smHealthDevices.readBloodPressure(
           provider: _activeProvider,
           timeout: widget.initConfig.timeout,
+          measuringTimeout: widget.initConfig.measuringTimeout,
         );
         break;
       case MeasurementType.weight:
         _smHealthDevices.readWeight(
           provider: _activeProvider,
           timeout: widget.initConfig.timeout,
+          measuringTimeout: widget.initConfig.measuringTimeout,
         );
         break;
       case MeasurementType.spo2:
         _smHealthDevices.readSpo2(
           provider: _activeProvider,
           timeout: widget.initConfig.timeout,
+          measuringTimeout: widget.initConfig.measuringTimeout,
         );
         break;
       case MeasurementType.temperature:
@@ -460,6 +499,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
           _smHealthDevices.readTemperature(
             provider: _activeProvider,
             timeout: widget.initConfig.timeout,
+            measuringTimeout: widget.initConfig.measuringTimeout,
           );
         }
         break;
@@ -574,46 +614,50 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // Wrap with PopScope to intercept back button
-    final content = PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (bool didPop, dynamic result) async {
-        if (didPop) return;
-        _handleBackAttempt();
-      },
-      child: AnimatedSwitcher(
-        duration: widget.uiConfig.animationDuration,
-        child: _buildContent(),
-      ),
+    final isCompleted = _lastEvent?.isCompleted == true ||
+        _lastEvent?.connectionState == HealthConnectionState.completed ||
+        _hasReachedSuccess;
+
+    final content = AnimatedSwitcher(
+      duration: widget.uiConfig.animationDuration,
+      child: _buildContent(),
     );
 
     if (widget.appBar != null || widget.uiConfig.showAppBar) {
-      return Scaffold(
-        backgroundColor: widget.uiConfig.backgroundColor ??
-            Theme.of(context).scaffoldBackgroundColor,
-        appBar: widget.appBar ??
-            AppBar(
-              title: Text(
-                widget.uiConfig.title ?? widget.measurementType.displayName,
-                style: widget.uiConfig.titleTextStyle,
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (bool didPop, dynamic result) async {
+          if (didPop) return;
+          _handleBackAttempt();
+        },
+        child: Scaffold(
+          backgroundColor: widget.uiConfig.backgroundColor ??
+              Theme.of(context).scaffoldBackgroundColor,
+          appBar: widget.appBar ??
+              AppBar(
+                title: Text(
+                  widget.uiConfig.title ?? widget.measurementType.displayName,
+                  style: widget.uiConfig.titleTextStyle,
+                ),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                centerTitle: true,
+                automaticallyImplyLeading: false,
+                leading: (isCompleted || _hasReachedSuccess)
+                    ? null
+                    : IconButton(
+                        icon: Icon(Icons.arrow_back,
+                            color: widget.uiConfig.textColor ?? Colors.black),
+                        onPressed: _handleBackAttempt,
+                      ),
               ),
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              centerTitle: true,
-              leading: IconButton(
-                icon: Icon(Icons.arrow_back,
-                    color: widget.uiConfig.textColor ?? Colors.black),
-                onPressed: _handleBackAttempt,
-              ),
-            ),
-        body: content,
+          body: content,
+        ),
       );
     } else {
-      return SizedBox(
-        child: ColoredBox(
-            color: widget.uiConfig.backgroundColor ??
-                Theme.of(context).scaffoldBackgroundColor,
-            child: content),
+      return Container(
+        color: widget.uiConfig.backgroundColor ?? Colors.transparent,
+        child: content,
       );
     }
   }

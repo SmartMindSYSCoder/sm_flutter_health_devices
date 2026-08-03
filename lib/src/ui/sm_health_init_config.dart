@@ -28,10 +28,12 @@ class SmHealthInitConfig {
   final SmHealthSettingsLanguage lang;
 
   /// Optional timeout for measurement/scan operations before timing out.
-  final Duration? timeout;
+  /// Defaults to 30 seconds.
+  final Duration timeout;
 
   /// Optional timeout for when the device is in measuring mode.
-  final Duration? measuringTimeout;
+  /// Defaults to 90 seconds.
+  final Duration measuringTimeout;
 
   const SmHealthInitConfig({
     this.autoStartScan = true,
@@ -41,7 +43,7 @@ class SmHealthInitConfig {
     this.fitrusApiKey,
     this.omronApiKey,
     this.lang = SmHealthSettingsLanguage.en,
-    this.timeout,
-    this.measuringTimeout,
+    this.timeout = const Duration(seconds: 30),
+    this.measuringTimeout = const Duration(seconds: 90),
   });
 }

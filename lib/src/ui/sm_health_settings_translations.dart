@@ -32,6 +32,16 @@ class SmHealthSettingsTranslations {
       isArabic ? 'إدارة أجهزتك المقترنة' : 'Manage your paired equipment';
   String get preferredProvider =>
       isArabic ? 'مزود الجهاز المفضل' : 'PREFERRED PROVIDER';
+  String get testMeasurement =>
+      isArabic ? 'اختبار القياس' : 'Test Measurement';
+  String get testDevice => isArabic ? 'اختبار الجهاز' : 'Test Device';
+  String testTypeMeasurement(MeasurementType type) => isArabic
+      ? 'اختبار قياس ${measurementType(type)}'
+      : 'Test ${measurementType(type)} Measurement';
+  String get close => isArabic ? 'إغلاق' : 'Close';
+  String get save => isArabic ? 'حفظ' : 'Save';
+  String get measurementSuccess =>
+      isArabic ? 'تم إكمال القياس بنجاح' : 'Measurement Successful';
   String get resetToDefaultsQuestion =>
       isArabic ? 'إعادة ضبط الإعدادات؟' : 'Reset to Defaults?';
   String get resetToDefaultsDescription => isArabic

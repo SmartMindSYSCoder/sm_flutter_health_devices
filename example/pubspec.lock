@@ -540,7 +540,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.0.7"
+    version: "1.0.8"
   sm_lepu:
     dependency: transitive
     description:
@@ -555,10 +555,10 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "3268304bf9e556cc34c7e4fc29c6dd81a502e399"
+      resolved-ref: e4f9c409745548ac8364a2edd541c78267ace1f2
       url: "https://github.com/SmartMindSYSCoder/sm_omron.git"
     source: git
-    version: "0.0.3"
+    version: "0.0.5"
   sm_raycome:
     dependency: transitive
     description:
