@@ -1,6 +1,6 @@
 name: sm_flutter_health_devices
 description: "Unified Flutter plugin for health devices - wraps sm_fitrus, sm_lepu, and sm_omron"
-version: 1.0.9
+version: 1.0.10
 publish_to: none
 homepage: https://github.com/SmartMindSYSCoder/sm_flutter_health_devices
 
