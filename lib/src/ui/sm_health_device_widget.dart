@@ -140,6 +140,9 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         .getPreferredProvider(widget.measurementType);
   }
 
+  SmHealthSettingsTranslations get _translations =>
+      SmHealthSettingsTranslations(widget.initConfig.lang);
+
   Future<void> _initAndStart() async {
     debugPrint('SmHealthDeviceWidget: _initAndStart called');
     
@@ -161,8 +164,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       final hasBluetoothPermission =
           await _smHealthDevices.permissions.checkBluetoothPermissions();
       if (!hasBluetoothPermission) {
-        _setError(
-            "Bluetooth permission is required. Please grant Bluetooth permission in settings.");
+        _setError(_translations.bluetoothPermissionRequired);
         return;
       }
 
@@ -170,8 +172,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       final hasLocationPermission =
           await _smHealthDevices.permissions.checkLocationPermission();
       if (!hasLocationPermission) {
-        _setError(
-            "Location permission is required for Bluetooth scanning. Please grant Location permission in settings.");
+        _setError(_translations.locationPermissionRequired);
         return;
       }
 
@@ -179,8 +180,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       final isBluetoothEnabled =
           await _smHealthDevices.permissions.isBluetoothEnabled();
       if (!isBluetoothEnabled) {
-        _setError(
-            "Bluetooth is disabled. Please enable Bluetooth in your device settings.");
+        _setError(_translations.enableBluetooth);
         return;
       }
 
@@ -188,8 +188,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       final isLocationServiceEnabled =
           await _smHealthDevices.permissions.isLocationServiceEnabled();
       if (!isLocationServiceEnabled) {
-        _setError(
-            "Location service is disabled. Please enable Location/GPS in your device settings.");
+        _setError(_translations.enableLocation);
         return;
       }
 
@@ -206,8 +205,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         ),
       );
       if (!initSuccess) {
-        _setError(
-            "Failed to initialize health device system. Please restart the app.");
+        _setError(_translations.initFailed);
         return;
       }
 
@@ -581,7 +579,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     debugPrint('SmHealthDeviceWidget: Transitioning to ERROR state: $message');
     _stopActiveMeasurement();
     setState(() {
-      _errorMessage = message ?? 'An error occurred';
+      _errorMessage = message ?? _translations.unknownError;
       _isScanning = false;
       _isConnecting = false;
       _isMeasuring = false;
@@ -757,18 +755,21 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     // Show confirmation dialog
     final shouldExit = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Stop Measurement?'),
-        content: const Text(
-            'Are you sure you want to cancel the current measurement?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Continue')),
-          TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Stop', style: TextStyle(color: Colors.red))),
-        ],
+      builder: (context) => Directionality(
+        textDirection: _translations.textDirection,
+        child: AlertDialog(
+          title: Text(_translations.stopMeasurementQuestion),
+          content: Text(_translations.stopMeasurementDescription),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(_translations.continueAction)),
+            TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(_translations.stopAction,
+                    style: const TextStyle(color: Colors.red))),
+          ],
+        ),
       ),
     );
 

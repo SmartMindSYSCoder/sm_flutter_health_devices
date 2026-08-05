@@ -749,9 +749,11 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                event.message.isNotEmpty
-                                    ? event.message
-                                    : translations.starting,
+                                translations.translateMessage(
+                                  event.message.isNotEmpty
+                                      ? event.message
+                                      : translations.starting,
+                                ),
                                 textAlign: TextAlign.center,
                                 style: settingsTheme.resolvedItemTitleTextStyle
                                     .copyWith(fontSize: 15),
@@ -927,7 +929,7 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                errorMessage,
+                                translations.translateMessage(errorMessage),
                                 textAlign: TextAlign.center,
                                 style: settingsTheme.resolvedBodyTextStyle
                                     .copyWith(
@@ -1102,7 +1104,9 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
               entry.key != 'errorMessage' &&
               entry.key != 'measurementDate' &&
               entry.key != 'temperatureUnit') {
-            list.add(MapEntry(entry.key, '${entry.value}'));
+            list.add(MapEntry(
+                _translateResultKey(entry.key, translations.isArabic),
+                '${entry.value}'));
           }
         }
         break;
@@ -1120,6 +1124,51 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
     }
 
     return list;
+  }
+
+  String _translateResultKey(String key, bool isArabic) {
+    if (!isArabic) return key;
+    switch (key) {
+      case 'fatMass':
+        return 'كتلة الدهون';
+      case 'waterPercentage':
+        return 'نسبة الماء';
+      case 'protein':
+        return 'البروتين';
+      case 'minerals':
+        return 'المعادن';
+      case 'calorie':
+      case 'calories':
+        return 'السعرات الحرارية';
+      case 'steps':
+        return 'الخطوات';
+      case 'aerobicSteps':
+        return 'الخطوات الهوائية';
+      case 'distance':
+        return 'المسافة';
+      case 'wheezeDetected':
+        return 'الصفير التنفسي';
+      case 'systolic':
+        return 'الضغط الانقباضي';
+      case 'diastolic':
+        return 'الضغط الانبساطي';
+      case 'pulse':
+        return 'النبض';
+      case 'weight':
+        return 'الوزن';
+      case 'bmi':
+        return 'مؤشر كتلة الجسم';
+      case 'temperature':
+        return 'درجة الحرارة';
+      case 'spo2':
+        return 'تشبع الأكسجين';
+      case 'heartRate':
+        return 'معدل ضربات القلب';
+      case 'glucoseLevel':
+        return 'سكر الدم';
+      default:
+        return key;
+    }
   }
 
   IconData _getMeasurementIcon(MeasurementType type) {

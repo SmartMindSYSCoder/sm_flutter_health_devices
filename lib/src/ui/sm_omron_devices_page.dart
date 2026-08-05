@@ -106,7 +106,7 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Text(_translations.translateMessage(message)),
           backgroundColor: widget.theme.dangerColor,
           behavior: SnackBarBehavior.floating,
         ),

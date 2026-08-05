@@ -109,6 +109,160 @@ class SmHealthSettingsTranslations {
       ? 'حدث خطأ أثناء تحميل الأجهزة: $error'
       : 'Error loading devices: $error';
 
+  String get stopMeasurementQuestion =>
+      isArabic ? 'إيقاف القياس؟' : 'Stop Measurement?';
+  String get stopMeasurementDescription => isArabic
+      ? 'هل أنت تأكد من أنك تريد إلغاء القياس الحالي؟'
+      : 'Are you sure you want to cancel the current measurement?';
+  String get continueAction => isArabic ? 'متابعة' : 'Continue';
+  String get stopAction => isArabic ? 'إيقاف' : 'Stop';
+  String get initFailed => isArabic
+      ? 'فشل في تهيئة نظام الأجهزة الصحية. يرجى إعادة تشغيل التطبيق.'
+      : 'Failed to initialize health device system. Please restart the app.';
+  String get fitrusProfileRequired => isArabic
+      ? 'يتطلب جهاز فيترس بيانات الملف الشخصي ومفتاح API لقياس تكوين الجسم.'
+      : 'Fitrus requires user profile data and API key for body composition.';
+  String get unsupportedOmronType => isArabic
+      ? 'نوع القياس غير مدعوم لأجهزة أومرون.'
+      : 'Unsupported measurement type for Omron.';
+  String unsupportedMeasurementType(MeasurementType type) => isArabic
+      ? 'نوع القياس غير مدعوم لهذا الوجت: ${measurementType(type)}'
+      : 'Unsupported measurement type for this widget: ${type.displayName}';
+  String get unknownError => isArabic ? 'حدث خطأ' : 'An error occurred';
+
+  /// Dynamically translates status, error, and scanning messages.
+  String translateMessage(String? message) {
+    if (message == null || message.trim().isEmpty) {
+      return starting;
+    }
+    if (!isArabic) return message;
+
+    final trimmed = message.trim();
+
+    // Check exact matches or common status patterns
+    if (trimmed == 'Starting...' || trimmed == 'Starting') return starting;
+    if (trimmed == 'Processing...' || trimmed == 'Processing') return processing;
+    if (trimmed.startsWith('Scanning') ||
+        trimmed.contains('searching for device') ||
+        trimmed == 'Status: scanning') {
+      return 'جارٍ البحث عن جهاز...';
+    }
+    if (trimmed.startsWith('Connecting') ||
+        trimmed.contains('connecting to device') ||
+        trimmed == 'Status: connecting' ||
+        trimmed == 'Status: discoveringServices') {
+      return 'جارٍ الاتصال...';
+    }
+    if (trimmed == 'Connected' ||
+        trimmed == 'Connected! Finalizing...' ||
+        trimmed == 'Status: connected' ||
+        trimmed == 'Status: dataAvailable') {
+      return 'تم الاتصال، جارٍ الإنهاء...';
+    }
+    if (trimmed.startsWith('Transferring')) return 'جارٍ نقل البيانات...';
+    if (trimmed.startsWith('Recording')) return 'جارٍ التسجيل...';
+    if (trimmed == 'Measuring...' || trimmed == 'Measuring') return 'جارٍ القياس...';
+    if (trimmed.startsWith('Measuring...')) {
+      return trimmed
+          .replaceAll('Measuring...', 'جارٍ القياس...')
+          .replaceAll('mmHg', 'مم زئبق');
+    }
+    if (trimmed.startsWith('Disconnecting') || trimmed == 'Status: disconnecting') {
+      return 'جارٍ قطع الاتصال...';
+    }
+    if (trimmed == 'Disconnected.' ||
+        trimmed == 'Disconnected' ||
+        trimmed == 'Status: disconnected') {
+      return 'تم قطع الاتصال.';
+    }
+    if (trimmed == 'Ready.' || trimmed == 'Ready') return 'جاهز.';
+    if (trimmed == 'Completed' || trimmed == 'Measurement Successful') {
+      return measurementSuccess;
+    }
+    if (trimmed == 'Status: scanFailed' || trimmed == 'Scan failed') {
+      return 'فشل البحث عن الجهاز.';
+    }
+
+    // Errors & permissions matching
+    if (trimmed.contains('Measurement timed out') ||
+        trimmed.contains('timed out') ||
+        trimmed.toLowerCase().contains('timeout')) {
+      final secondsMatch = RegExp(r'\d+').firstMatch(trimmed);
+      if (secondsMatch != null) {
+        return 'انتهت المهلة الزمانية للقياس بعد ${secondsMatch.group(0)} ثانية.';
+      }
+      return 'انتهت المهلة الزمانية للقياس.';
+    }
+    if (trimmed.contains('Bluetooth permission is required')) {
+      return bluetoothPermissionRequired;
+    }
+    if (trimmed.contains('Location permission is required')) {
+      return locationPermissionRequired;
+    }
+    if (trimmed.contains('Bluetooth is disabled') ||
+        trimmed.contains('turn on Bluetooth') ||
+        trimmed.contains('Please turn on Bluetooth')) {
+      return enableBluetooth;
+    }
+    if (trimmed.contains('Location service is disabled') ||
+        trimmed.contains('enable Location') ||
+        trimmed.contains('Please enable Location')) {
+      return enableLocation;
+    }
+    if (trimmed.contains('Failed to initialize health device system')) {
+      return initFailed;
+    }
+    if (trimmed.contains('Fitrus requires user profile data')) {
+      return fitrusProfileRequired;
+    }
+    if (trimmed.contains('Unsupported measurement type for Omron')) {
+      return unsupportedOmronType;
+    }
+    if (trimmed.contains('Unsupported measurement type for this widget')) {
+      return 'نوع القياس غير مدعوم لهذا الوجت.';
+    }
+    if (trimmed.contains('Pairing failed')) {
+      return pairingFailed;
+    }
+    if (trimmed.contains('Device not found')) {
+      return deviceNotFound;
+    }
+    if (trimmed.startsWith('Pairing error:')) {
+      return trimmed.replaceFirst('Pairing error:', 'خطأ في الاقتران:');
+    }
+    if (trimmed.startsWith('Omron flow error:')) {
+      return trimmed.replaceFirst('Omron flow error:', 'خطأ في أجهزة أومرون:');
+    }
+    if (trimmed.startsWith('Error adding device:')) {
+      return trimmed.replaceFirst('Error adding device:', 'حدث خطأ أثناء إضافة الجهاز:');
+    }
+    if (trimmed.startsWith('Error loading devices:')) {
+      return trimmed.replaceFirst('Error loading devices:', 'حدث خطأ أثناء تحميل الأجهزة:');
+    }
+    if (trimmed.startsWith('Scan error:')) {
+      return trimmed.replaceFirst('Scan error:', 'خطأ في البحث عن الجهاز:');
+    }
+    if (trimmed.startsWith('Connection error:')) {
+      return trimmed.replaceFirst('Connection error:', 'خطأ في الاتصال:');
+    }
+    if (trimmed.toLowerCase().contains('user cancelled') ||
+        trimmed.toLowerCase().contains('cancelled')) {
+      return 'تم إلغاء العملية.';
+    }
+    if (trimmed.toLowerCase().contains('connection lost') ||
+        trimmed.toLowerCase().contains('connection failed')) {
+      return 'فشل الاتصال بالجهاز.';
+    }
+    if (trimmed.toLowerCase().contains('measurement failed')) {
+      return 'فشل إجراء القياس.';
+    }
+    if (trimmed == 'An error occurred' || trimmed == 'Error') {
+      return unknownError;
+    }
+
+    return message;
+  }
+
   String measurementType(MeasurementType type) {
     switch (type) {
       case MeasurementType.weight:
