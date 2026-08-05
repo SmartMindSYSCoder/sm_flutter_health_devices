@@ -172,6 +172,10 @@ class SmHealthSettingsTranslations {
         lower.contains('exception') ||
         lower.contains('error code') ||
         lower.contains('status_') ||
+        lower.contains('blestate') ||
+        lower.contains('icble') ||
+        lower.contains('icdevice') ||
+        lower.contains('icscale') ||
         RegExp(r'^\d+$').hasMatch(trimmed)) {
       return isArabic
           ? 'حدث خطأ أثناء الاتصال بالجهاز. يرجى التأكد من تشغيل الجهاز وقربه ثم المحاولة مرة أخرى.'
@@ -226,7 +230,17 @@ class SmHealthSettingsTranslations {
           : 'Recording vital data...';
     }
 
-    // 7. Lepu Scale / Weight Specific Messages
+    // 7. Lepu Scale / Weight Specific Messages (including ICBleState)
+    if (lower.contains('icblestatepoweredon') ||
+        lower.contains('icblestateon') ||
+        lower.contains('icblestate')) {
+      if (lower.contains('poweredoff') || lower.contains('off')) {
+        return enableBluetooth;
+      }
+      return isArabic
+          ? 'الميزان جاهز! يرجى الوقوف على الميزان حافي القدمين والثبات.'
+          : 'Scale is ready! Please step onto the scale barefoot and stand still.';
+    }
     if (lower.contains('step onto the scale') ||
         lower.contains('step on scale') ||
         lower.contains('stand on scale') ||

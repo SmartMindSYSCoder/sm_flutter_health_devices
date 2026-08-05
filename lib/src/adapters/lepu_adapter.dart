@@ -17,12 +17,22 @@ class LepuAdapter {
     }
 
     String message = lepuEvent.message;
-    if (measurementType == MeasurementType.weight) {
+    final lowerMsg = message.toLowerCase();
+
+    if (lowerMsg.contains('icblestatepoweredon') || lowerMsg.contains('icblestateon')) {
+      message = 'Please step onto the scale barefoot and stand still.';
+    } else if (lowerMsg.contains('icblestatepoweredoff') || lowerMsg.contains('icblestateoff')) {
+      message = 'Bluetooth is disabled. Please turn on Bluetooth.';
+    } else if (lowerMsg.contains('icblestatelocationoff')) {
+      message = 'Location service is disabled. Please enable Location.';
+    } else if (lowerMsg.contains('icblestate')) {
+      message = 'Please step onto the scale barefoot and stand still.';
+    } else if (measurementType == MeasurementType.weight) {
       if (lepuEvent.weight > 0 && !lepuEvent.isCompleted) {
         message = 'Measuring weight: ${_round(lepuEvent.weight)} kg';
       } else if ((message.isEmpty ||
-              message.toLowerCase().contains('connecting') ||
-              message.toLowerCase().contains('connected')) &&
+              lowerMsg.contains('connecting') ||
+              lowerMsg.contains('connected')) &&
           !lepuEvent.isCompleted &&
           !lepuEvent.hasError) {
         message = 'Please step onto the scale barefoot and stand still.';
