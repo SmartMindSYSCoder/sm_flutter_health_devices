@@ -756,6 +756,7 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                                   event.message.isNotEmpty
                                       ? event.message
                                       : translations.starting,
+                                  measurementType: type,
                                 ),
                                 textAlign: TextAlign.center,
                                 style: settingsTheme.resolvedItemTitleTextStyle
@@ -932,7 +933,8 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                translations.translateMessage(errorMessage),
+                                translations.translateMessage(errorMessage,
+                                    measurementType: type),
                                 textAlign: TextAlign.center,
                                 style: settingsTheme.resolvedBodyTextStyle
                                     .copyWith(

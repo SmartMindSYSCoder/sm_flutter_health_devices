@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'models/enums.dart';
@@ -221,6 +222,21 @@ class HealthPermissionManager {
   Future<bool> checkLocationPermission() async {
     final status = await Permission.locationWhenInUse.status;
     return status.isGranted;
+  }
+
+  /// Request to enable Bluetooth adapter directly via system dialog prompt
+  Future<bool> requestBluetoothEnable() async {
+    try {
+      if (Platform.isAndroid) {
+        await FlutterBluePlus.turnOn();
+        return await isBluetoothEnabled();
+      } else {
+        return await openSettings();
+      }
+    } catch (e) {
+      debugPrint('Error enabling Bluetooth directly: $e');
+      return await openSettings();
+    }
   }
 
   /// Check if Bluetooth adapter is enabled (turned on)

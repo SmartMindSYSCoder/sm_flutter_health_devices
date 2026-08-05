@@ -890,7 +890,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget>
                     : translations.disabled,
                 actionLabel: translations.turnOn,
                 onAction: () async {
-                  await _smHealthDevices.permissions.openSettings();
+                  await _smHealthDevices.permissions.requestBluetoothEnable();
                   _checkRequirementsStatus();
                 },
                 primaryColor: primaryColor,
@@ -931,9 +931,11 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget>
                     child: ElevatedButton(
                       onPressed: () async {
                         await _smHealthDevices.permissions.requestBasePermissions();
-                        if (!_requirementStatus.isBluetoothEnabled ||
-                            !_requirementStatus.isLocationServiceEnabled) {
-                          await _smHealthDevices.permissions.openSettings();
+                        if (!_requirementStatus.isBluetoothEnabled) {
+                          await _smHealthDevices.permissions.requestBluetoothEnable();
+                        }
+                        if (!_requirementStatus.isLocationServiceEnabled) {
+                          await _smHealthDevices.permissions.requestLocationService();
                         }
                         _checkRequirementsStatus();
                       },

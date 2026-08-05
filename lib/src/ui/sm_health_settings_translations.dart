@@ -156,136 +156,258 @@ class SmHealthSettingsTranslations {
   String get allRequirementsMet =>
       isArabic ? 'تم تلبية جميع المتطلبات' : 'All Requirements Met';
 
-  /// Dynamically translates status, error, and scanning messages.
-  String translateMessage(String? message) {
+  /// Dynamically translates status, error, and scanning messages into clear,
+  /// user-friendly, localized strings. Sanitizes raw technical error codes.
+  String translateMessage(String? message, {MeasurementType? measurementType}) {
     if (message == null || message.trim().isEmpty) {
       return starting;
     }
-    if (!isArabic) return message;
 
     final trimmed = message.trim();
+    final lower = trimmed.toLowerCase();
 
-    // Check exact matches or common status patterns
-    if (trimmed == 'Starting...' || trimmed == 'Starting') return starting;
-    if (trimmed == 'Processing...' || trimmed == 'Processing') return processing;
-    if (trimmed.startsWith('Scanning') ||
-        trimmed.contains('searching for device') ||
-        trimmed == 'Status: scanning') {
-      return 'جارٍ البحث عن جهاز...';
-    }
-    if (trimmed.startsWith('Connecting') ||
-        trimmed.contains('connecting to device') ||
-        trimmed == 'Status: connecting' ||
-        trimmed == 'Status: discoveringServices') {
-      return 'جارٍ الاتصال...';
-    }
-    if (trimmed == 'Connected' ||
-        trimmed == 'Connected! Finalizing...' ||
-        trimmed == 'Status: connected' ||
-        trimmed == 'Status: dataAvailable') {
-      return 'تم الاتصال، جارٍ الإنهاء...';
-    }
-    if (trimmed.startsWith('Transferring')) return 'جارٍ نقل البيانات...';
-    if (trimmed.startsWith('Recording')) return 'جارٍ التسجيل...';
-    if (trimmed == 'Measuring...' || trimmed == 'Measuring') return 'جارٍ القياس...';
-    if (trimmed.startsWith('Measuring...')) {
-      return trimmed
-          .replaceAll('Measuring...', 'جارٍ القياس...')
-          .replaceAll('mmHg', 'مم زئبق');
-    }
-    if (trimmed.startsWith('Disconnecting') || trimmed == 'Status: disconnecting') {
-      return 'جارٍ قطع الاتصال...';
-    }
-    if (trimmed == 'Disconnected.' ||
-        trimmed == 'Disconnected' ||
-        trimmed == 'Status: disconnected') {
-      return 'تم قطع الاتصال.';
-    }
-    if (trimmed == 'Ready.' || trimmed == 'Ready') return 'جاهز.';
-    if (trimmed == 'Completed' || trimmed == 'Measurement Successful') {
-      return measurementSuccess;
-    }
-    if (trimmed == 'Status: scanFailed' || trimmed == 'Scan failed') {
-      return 'فشل البحث عن الجهاز.';
+    // 1. Sanitize raw GATT, BLE, numeric, or SDK technical error codes
+    if (lower.contains('gatt') ||
+        lower.contains('0x') ||
+        lower.contains('exception') ||
+        lower.contains('error code') ||
+        lower.contains('status_') ||
+        RegExp(r'^\d+$').hasMatch(trimmed)) {
+      return isArabic
+          ? 'حدث خطأ أثناء الاتصال بالجهاز. يرجى التأكد من تشغيل الجهاز وقربه ثم المحاولة مرة أخرى.'
+          : 'Device connection error. Please ensure your device is powered on, nearby, and try again.';
     }
 
-    // Errors & permissions matching
-    if (trimmed.contains('Measurement timed out') ||
-        trimmed.contains('timed out') ||
-        trimmed.toLowerCase().contains('timeout')) {
+    // 2. Omron SDK internal errors
+    if (lower.contains('omron') && lower.contains('error')) {
+      return isArabic
+          ? 'خطأ في تواصل جهاز أومرون. يرجى التأكد من وضع الاقتران وإعادة المحاولة.'
+          : 'Omron device error. Please ensure the device is in pairing mode and retry.';
+    }
+
+    // 3. Scanning / Searching for devices
+    if (lower.startsWith('scanning') ||
+        lower.contains('searching for device') ||
+        lower == 'status: scanning') {
+      return isArabic
+          ? 'جارٍ البحث عن جهازك... يرجى التأكد من تشغيل الجهاز.'
+          : 'Searching for your device... Please ensure device is powered on.';
+    }
+
+    // 4. Connecting / Discovering Services
+    if (lower.startsWith('connecting') ||
+        lower.contains('connecting to device') ||
+        lower == 'status: connecting' ||
+        lower.contains('discoveringservices')) {
+      return isArabic
+          ? 'جارٍ الاتصال بالجهاز... يرجى إبقاء الجهاز قريباً.'
+          : 'Connecting to device... Please keep the device nearby.';
+    }
+
+    // 5. Connected / Finalizing / Data Available
+    if (lower == 'connected' ||
+        lower == 'connected! finalizing...' ||
+        lower == 'status: connected' ||
+        lower.contains('dataavailable')) {
+      return isArabic
+          ? 'تم الاتصال بالجهاز بنجاح! جارٍ تجهيز البيانات...'
+          : 'Connected successfully! Finalizing data...';
+    }
+
+    // 6. Transferring / Recording
+    if (lower.startsWith('transferring')) {
+      return isArabic
+          ? 'جارٍ نقل البيانات من الجهاز...'
+          : 'Transferring data from device...';
+    }
+    if (lower.startsWith('recording')) {
+      return isArabic
+          ? 'جارٍ تسجيل البيانات...'
+          : 'Recording vital data...';
+    }
+
+    // 7. Lepu Scale / Weight Specific Messages
+    if (lower.contains('step onto the scale') ||
+        lower.contains('step on scale') ||
+        lower.contains('stand on scale') ||
+        lower.contains('scale ready')) {
+      return isArabic
+          ? 'الميزان جاهز! يرجى الوقوف على الميزان حافي القدمين والثبات.'
+          : 'Scale is ready! Please step onto the scale barefoot and stand still.';
+    }
+    if (lower.contains('impedance') || lower.contains('fat measuring')) {
+      return isArabic
+          ? 'جارٍ قياس نسبة الدهون وتكوين الجسم... يرجى الثبات حافي القدمين على الحساسات.'
+          : 'Measuring body fat and composition... Please stand barefoot on scale sensors.';
+    }
+    if (lower.contains('unstable')) {
+      return isArabic
+          ? 'جارٍ ضبط القياس... يرجى الوقوف ثابتاً دون اهتزاز.'
+          : 'Stabilizing weight... Please stand still on the scale without moving.';
+    }
+    if (lower.startsWith('measuring weight:')) {
+      final weightVal = trimmed.replaceFirst(RegExp(r'^[Mm]easuring weight:\s*'), '');
+      return isArabic
+          ? 'جارٍ قياس الوزن: $weightVal (يرجى الثبات)'
+          : 'Measuring weight: $weightVal (Please stand still)';
+    }
+    if (lower.contains('icomon') || lower.contains('scale connected')) {
+      return isArabic
+          ? 'تم الاتصال بالميزان! يرجى الوقوف على الميزان.'
+          : 'Scale connected! Please step onto the scale.';
+    }
+
+    // 8. Measuring (Contextual based on measurement type)
+    if (lower == 'measuring...' || lower == 'measuring') {
+      if (measurementType == MeasurementType.bloodPressure) {
+        return isArabic
+            ? 'جارٍ قياس ضغط الدم... يرجى البقاء ثابتاً.'
+            : 'Measuring blood pressure... Please remain still.';
+      } else if (measurementType == MeasurementType.temperature) {
+        return isArabic
+            ? 'جارٍ قياس درجة الحرارة... يرجى عدم التحرك.'
+            : 'Measuring temperature... Please hold position.';
+      } else if (measurementType == MeasurementType.weight ||
+          measurementType == MeasurementType.bodyComposition) {
+        return isArabic
+            ? 'جارٍ قياس الوزن وتكوين الجسم... يرجى الوقوف ثابتاً.'
+            : 'Measuring weight and body composition... Please stand still.';
+      } else if (measurementType == MeasurementType.spo2) {
+        return isArabic
+            ? 'جارٍ قياس نسبة الأكسجين... يرجى عدم التحرك.'
+            : 'Measuring oxygen level... Please remain still.';
+      }
+      return isArabic
+          ? 'جارٍ إجراء القياس... يرجى البقاء ثابتاً.'
+          : 'Measuring... Please remain still.';
+    }
+
+    if (lower.startsWith('measuring...')) {
+      if (isArabic) {
+        return trimmed
+            .replaceAll('Measuring...', 'جارٍ القياس...')
+            .replaceAll('mmHg', 'مم زئبق');
+      }
+      return trimmed;
+    }
+
+    // 8. Disconnecting / Disconnected
+    if (lower.startsWith('disconnecting') || lower == 'status: disconnecting') {
+      return isArabic ? 'جارٍ قطع الاتصال...' : 'Disconnecting...';
+    }
+    if (lower == 'disconnected.' ||
+        lower == 'disconnected' ||
+        lower == 'status: disconnected') {
+      return isArabic ? 'تم قطع الاتصال بالجهاز.' : 'Disconnected from device.';
+    }
+
+    // 9. Status: scanFailed
+    if (lower == 'status: scanfailed' || lower == 'scan failed') {
+      return isArabic
+          ? 'لم يتم العثور على الجهاز. يرجى التأكد من تشغيله وإعادة المحاولة.'
+          : 'Device scan failed. Please verify the device is powered on and retry.';
+    }
+
+    // 10. Timeouts
+    if (lower.contains('measurement timed out') ||
+        lower.contains('timed out') ||
+        lower.contains('timeout')) {
       final secondsMatch = RegExp(r'\d+').firstMatch(trimmed);
       if (secondsMatch != null) {
-        return 'انتهت المهلة الزمانية للقياس بعد ${secondsMatch.group(0)} ثانية.';
+        return isArabic
+            ? 'انتهت المهلة الزمانية للقياس بعد ${secondsMatch.group(0)} ثانية. يرجى إعادة المحاولة.'
+            : 'Measurement timed out after ${secondsMatch.group(0)} seconds. Please try again.';
       }
-      return 'انتهت المهلة الزمانية للقياس.';
+      return isArabic
+          ? 'انتهت المهلة الزمانية للقياس. يرجى إعادة المحاولة.'
+          : 'Measurement timed out. Please try again.';
     }
-    if (trimmed.contains('Bluetooth permission is required')) {
+
+    // 11. Bluetooth / Location Permissions & Services
+    if (lower.contains('bluetooth permission')) {
       return bluetoothPermissionRequired;
     }
-    if (trimmed.contains('Location permission is required')) {
+    if (lower.contains('location permission')) {
       return locationPermissionRequired;
     }
-    if (trimmed.contains('Bluetooth is disabled') ||
-        trimmed.contains('turn on Bluetooth') ||
-        trimmed.contains('Please turn on Bluetooth')) {
+    if (lower.contains('bluetooth is disabled') ||
+        lower.contains('turn on bluetooth')) {
       return enableBluetooth;
     }
-    if (trimmed.contains('Location service is disabled') ||
-        trimmed.contains('enable Location') ||
-        trimmed.contains('Please enable Location')) {
+    if (lower.contains('location service is disabled') ||
+        lower.contains('enable location')) {
       return enableLocation;
     }
-    if (trimmed.contains('Failed to initialize health device system')) {
+    if (lower.contains('failed to initialize health device system')) {
       return initFailed;
     }
-    if (trimmed.contains('Fitrus requires user profile data')) {
+    if (lower.contains('fitrus requires user profile')) {
       return fitrusProfileRequired;
     }
-    if (trimmed.contains('Unsupported measurement type for Omron')) {
+    if (lower.contains('unsupported measurement type for omron')) {
       return unsupportedOmronType;
     }
-    if (trimmed.contains('Unsupported measurement type for this widget')) {
-      return 'نوع القياس غير مدعوم لهذا الوجت.';
+    if (lower.contains('unsupported measurement type for this widget')) {
+      return isArabic
+          ? 'نوع القياس غير مدعوم لهذا الوجت.'
+          : 'Unsupported measurement type for this widget.';
     }
-    if (trimmed.contains('Pairing failed')) {
+    if (lower.contains('pairing failed')) {
       return pairingFailed;
     }
-    if (trimmed.contains('Device not found')) {
+    if (lower.contains('device not found')) {
       return deviceNotFound;
     }
+
+    // 12. Errors prefix mapping
     if (trimmed.startsWith('Pairing error:')) {
-      return trimmed.replaceFirst('Pairing error:', 'خطأ في الاقتران:');
+      return isArabic
+          ? trimmed.replaceFirst('Pairing error:', 'خطأ في الاقتران:')
+          : trimmed;
     }
     if (trimmed.startsWith('Omron flow error:')) {
-      return trimmed.replaceFirst('Omron flow error:', 'خطأ في أجهزة أومرون:');
+      return isArabic
+          ? trimmed.replaceFirst('Omron flow error:', 'خطأ في أجهزة أومرون:')
+          : trimmed;
     }
     if (trimmed.startsWith('Error adding device:')) {
-      return trimmed.replaceFirst('Error adding device:', 'حدث خطأ أثناء إضافة الجهاز:');
+      return isArabic
+          ? trimmed.replaceFirst('Error adding device:', 'حدث خطأ أثناء إضافة الجهاز:')
+          : trimmed;
     }
     if (trimmed.startsWith('Error loading devices:')) {
-      return trimmed.replaceFirst('Error loading devices:', 'حدث خطأ أثناء تحميل الأجهزة:');
+      return isArabic
+          ? trimmed.replaceFirst('Error loading devices:', 'حدث خطأ أثناء تحميل الأجهزة:')
+          : trimmed;
     }
     if (trimmed.startsWith('Scan error:')) {
-      return trimmed.replaceFirst('Scan error:', 'خطأ في البحث عن الجهاز:');
+      return isArabic
+          ? trimmed.replaceFirst('Scan error:', 'خطأ في البحث عن الجهاز:')
+          : trimmed;
     }
     if (trimmed.startsWith('Connection error:')) {
-      return trimmed.replaceFirst('Connection error:', 'خطأ في الاتصال:');
+      return isArabic
+          ? trimmed.replaceFirst('Connection error:', 'خطأ في الاتصال:')
+          : trimmed;
     }
-    if (trimmed.toLowerCase().contains('user cancelled') ||
-        trimmed.toLowerCase().contains('cancelled')) {
-      return 'تم إلغاء العملية.';
+    if (lower.contains('user cancelled') || lower.contains('cancelled')) {
+      return isArabic ? 'تم إلغاء العملية.' : 'Operation cancelled.';
     }
-    if (trimmed.toLowerCase().contains('connection lost') ||
-        trimmed.toLowerCase().contains('connection failed')) {
-      return 'فشل الاتصال بالجهاز.';
+    if (lower.contains('connection lost') || lower.contains('connection failed')) {
+      return isArabic
+          ? 'فشل الاتصال بالجهاز. يرجى التأكد من تشغيله ثم إعادة المحاولة.'
+          : 'Connection failed. Please ensure your device is powered on and retry.';
     }
-    if (trimmed.toLowerCase().contains('measurement failed')) {
-      return 'فشل إجراء القياس.';
+    if (lower.contains('measurement failed')) {
+      return isArabic
+          ? 'فشل إجراء القياس. يرجى محاولة القياس مرة أخرى.'
+          : 'Measurement failed. Please try again.';
     }
     if (trimmed == 'An error occurred' || trimmed == 'Error') {
       return unknownError;
     }
 
+    if (!isArabic) return message;
     return message;
   }
 

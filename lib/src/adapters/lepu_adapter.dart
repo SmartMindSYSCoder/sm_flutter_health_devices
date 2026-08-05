@@ -16,6 +16,19 @@ class LepuAdapter {
       vitalResult = toHealthVitalResult(lepuEvent);
     }
 
+    String message = lepuEvent.message;
+    if (measurementType == MeasurementType.weight) {
+      if (lepuEvent.weight > 0 && !lepuEvent.isCompleted) {
+        message = 'Measuring weight: ${_round(lepuEvent.weight)} kg';
+      } else if ((message.isEmpty ||
+              message.toLowerCase().contains('connecting') ||
+              message.toLowerCase().contains('connected')) &&
+          !lepuEvent.isCompleted &&
+          !lepuEvent.hasError) {
+        message = 'Please step onto the scale barefoot and stand still.';
+      }
+    }
+
     return HealthEventData(
       provider: DeviceProvider.lepu,
       measurementType: measurementType,
@@ -23,7 +36,7 @@ class LepuAdapter {
       isConnected: lepuEvent.isConnected,
       isCompleted: lepuEvent.isCompleted,
       hasError: lepuEvent.hasError,
-      message: lepuEvent.message,
+      message: message,
       progress: lepuEvent.progress,
       vitalResult: vitalResult,
     );
