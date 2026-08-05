@@ -66,8 +66,54 @@ class PermissionResult {
   }
 }
 
+/// Represents the real-time status of all required permissions and system services.
+class HealthRequirementStatus {
+  final bool hasBluetoothPermission;
+  final bool hasLocationPermission;
+  final bool isBluetoothEnabled;
+  final bool isLocationServiceEnabled;
+
+  const HealthRequirementStatus({
+    this.hasBluetoothPermission = false,
+    this.hasLocationPermission = false,
+    this.isBluetoothEnabled = false,
+    this.isLocationServiceEnabled = false,
+  });
+
+  /// Check if ALL required permissions and services are granted/enabled.
+  bool get isAllSatisfied =>
+      hasBluetoothPermission &&
+      hasLocationPermission &&
+      isBluetoothEnabled &&
+      isLocationServiceEnabled;
+
+  @override
+  String toString() {
+    return 'HealthRequirementStatus('
+        'bluetoothPermission: $hasBluetoothPermission, '
+        'locationPermission: $hasLocationPermission, '
+        'bluetoothEnabled: $isBluetoothEnabled, '
+        'locationServiceEnabled: $isLocationServiceEnabled, '
+        'isAllSatisfied: $isAllSatisfied)';
+  }
+}
+
 /// Manages all permissions required for health device plugins
 class HealthPermissionManager {
+  /// Check all required permissions and services in a single call
+  Future<HealthRequirementStatus> checkAllRequirements() async {
+    final btPerm = await checkBluetoothPermissions();
+    final locPerm = await checkLocationPermission();
+    final btEnabled = await isBluetoothEnabled();
+    final locService = await isLocationServiceEnabled();
+
+    return HealthRequirementStatus(
+      hasBluetoothPermission: btPerm,
+      hasLocationPermission: locPerm,
+      isBluetoothEnabled: btEnabled,
+      isLocationServiceEnabled: locService,
+    );
+  }
   /// Request base permissions (Bluetooth + Location + GPS)
   /// These are required for ALL health devices
   Future<PermissionResult> requestBasePermissions() async {

@@ -130,6 +130,32 @@ class SmHealthSettingsTranslations {
       : 'Unsupported measurement type for this widget: ${type.displayName}';
   String get unknownError => isArabic ? 'حدث خطأ' : 'An error occurred';
 
+  String get requiredPermissionsAndServices =>
+      isArabic ? 'الأذونات والخدمات المطلوبة' : 'Required Permissions & Services';
+  String get permissionsAndServicesDescription => isArabic
+      ? 'يرجى منح الأذونات وتفعيل الخدمات التالية لبدء القياس.'
+      : 'Please grant permissions and enable services below to start measurement.';
+  String get bluetoothPermission =>
+      isArabic ? 'إذن البلوتوث' : 'Bluetooth Permission';
+  String get locationPermission =>
+      isArabic ? 'إذن الموقع' : 'Location Permission';
+  String get bluetoothAdapter =>
+      isArabic ? 'تشغيل البلوتوث' : 'Bluetooth Service';
+  String get locationService =>
+      isArabic ? 'خدمات الموقع (GPS)' : 'Location Services (GPS)';
+  String get granted => isArabic ? 'ممنوح' : 'Granted';
+  String get enabled => isArabic ? 'مفعل' : 'Enabled';
+  String get disabled => isArabic ? 'معطل' : 'Disabled';
+  String get denied => isArabic ? 'مرفوض' : 'Denied';
+  String get grantPermission => isArabic ? 'منح الإذن' : 'Grant Permission';
+  String get turnOn => isArabic ? 'تشغيل' : 'Turn On';
+  String get openSettings => isArabic ? 'فتح الإعدادات' : 'Open Settings';
+  String get grantAndEnableAll =>
+      isArabic ? 'منح وتفعيل الكل' : 'Grant & Enable All';
+  String get checkAgain => isArabic ? 'إعادة التحديث' : 'Check Again';
+  String get allRequirementsMet =>
+      isArabic ? 'تم تلبية جميع المتطلبات' : 'All Requirements Met';
+
   /// Dynamically translates status, error, and scanning messages.
   String translateMessage(String? message) {
     if (message == null || message.trim().isEmpty) {

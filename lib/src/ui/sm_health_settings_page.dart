@@ -709,7 +709,10 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                     SmHealthDeviceWidget(
                       measurementType: type,
                       initConfig: widget.initConfig,
-                      uiConfig: const SmHealthUiConfig(showAppBar: false),
+                      uiConfig: SmHealthUiConfig(
+                        showAppBar: false,
+                        textColor: settingsTheme.textColor,
+                      ),
                       onResult: (result) {
                         Navigator.pop(context);
                         final items =

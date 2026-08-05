@@ -90,9 +90,15 @@ class SmHealthDeviceWidget extends StatefulWidget {
   State<SmHealthDeviceWidget> createState() => _SmHealthDeviceWidgetState();
 }
 
-class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
+class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget>
+    with WidgetsBindingObserver {
   final _smHealthDevices = SmHealthDevices();
   StreamSubscription<HealthEventData>? _subscription;
+  Timer? _statusMonitoringTimer;
+
+  // Real-time requirement status
+  HealthRequirementStatus _requirementStatus = const HealthRequirementStatus();
+  bool _shouldStartWhenRequirementsMet = false;
 
   // State
   bool _isInInitState = true; // Start in init state
@@ -113,17 +119,79 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Resolve provider immediately to avoid LateInitializationError in build()
     _resolveProvider();
 
-    // If no initBuilder provided, use autoStartScan behavior
-    if (widget.initBuilder == null && widget.initConfig.autoStartScan) {
-      debugPrint('SmHealthDeviceWidget: No initBuilder, auto-starting...');
-      _isInInitState = false;
-      _initAndStart();
-    } else if (widget.initBuilder == null) {
-      // No initBuilder and no autoStart, go directly to ready state
-      _isInInitState = false;
+    // Check requirements immediately before starting
+    _checkRequirementsStatus().then((_) {
+      if (mounted) {
+        if (widget.initBuilder == null && widget.initConfig.autoStartScan) {
+          debugPrint('SmHealthDeviceWidget: No initBuilder, auto-starting...');
+          _isInInitState = false;
+          _initAndStart();
+        } else if (widget.initBuilder == null) {
+          // No initBuilder and no autoStart, go directly to ready state
+          _isInInitState = false;
+        }
+      }
+    });
+
+    _startStatusMonitoring();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _statusMonitoringTimer?.cancel();
+    _subscription?.cancel();
+    _stopActiveMeasurement();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('SmHealthDeviceWidget: App resumed, re-checking requirements...');
+      _checkRequirementsStatus();
+    }
+  }
+
+  void _startStatusMonitoring() {
+    _statusMonitoringTimer?.cancel();
+    _statusMonitoringTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted) {
+        _checkRequirementsStatus();
+      }
+    });
+  }
+
+  Future<void> _checkRequirementsStatus() async {
+    final status = await _smHealthDevices.permissions.checkAllRequirements();
+    if (!mounted) return;
+
+    final wasSatisfied = _requirementStatus.isAllSatisfied;
+    final isSatisfied = status.isAllSatisfied;
+
+    if (_requirementStatus.hasBluetoothPermission != status.hasBluetoothPermission ||
+        _requirementStatus.hasLocationPermission != status.hasLocationPermission ||
+        _requirementStatus.isBluetoothEnabled != status.isBluetoothEnabled ||
+        _requirementStatus.isLocationServiceEnabled != status.isLocationServiceEnabled) {
+      setState(() {
+        _requirementStatus = status;
+      });
+
+      // Automatically react when all requirements become satisfied
+      if (!wasSatisfied && isSatisfied) {
+        debugPrint('SmHealthDeviceWidget: All requirements satisfied!');
+        if (_shouldStartWhenRequirementsMet || (!_isInInitState && _errorMessage == null)) {
+          _shouldStartWhenRequirementsMet = false;
+          _initAndStart();
+        }
+      } else if (wasSatisfied && !isSatisfied) {
+        debugPrint('SmHealthDeviceWidget: Requirement lost mid-session! Stopping...');
+        _stopActiveMeasurement();
+      }
     }
   }
 
@@ -150,8 +218,25 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     await _stopActiveMeasurement();
     _activeStopFuture = null;
 
+    final reqStatus = await _smHealthDevices.permissions.checkAllRequirements();
+    if (!mounted) return;
+
     setState(() {
       _isInInitState = false;
+      _requirementStatus = reqStatus;
+    });
+
+    // If requirements are missing, do not start measurement flow
+    if (!reqStatus.isAllSatisfied) {
+      debugPrint('SmHealthDeviceWidget: Requirements missing, displaying requirements view.');
+      _shouldStartWhenRequirementsMet = true;
+      setState(() {
+        _isInitializing = false;
+      });
+      return;
+    }
+
+    setState(() {
       _isInitializing = true;
       _errorMessage = null;
       _hasStopped = false;
@@ -159,43 +244,8 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     });
 
     try {
-      debugPrint('SmHealthDeviceWidget: Checking permissions...');
-      // 1. Check Bluetooth Permission
-      final hasBluetoothPermission =
-          await _smHealthDevices.permissions.checkBluetoothPermissions();
-      if (!hasBluetoothPermission) {
-        _setError(_translations.bluetoothPermissionRequired);
-        return;
-      }
-
-      // 2. Check Location Permission
-      final hasLocationPermission =
-          await _smHealthDevices.permissions.checkLocationPermission();
-      if (!hasLocationPermission) {
-        _setError(_translations.locationPermissionRequired);
-        return;
-      }
-
-      // 3. Check Bluetooth Service (Adapter enabled)
-      final isBluetoothEnabled =
-          await _smHealthDevices.permissions.isBluetoothEnabled();
-      if (!isBluetoothEnabled) {
-        _setError(_translations.enableBluetooth);
-        return;
-      }
-
-      // 4. Check Location Service (GPS enabled)
-      final isLocationServiceEnabled =
-          await _smHealthDevices.permissions.isLocationServiceEnabled();
-      if (!isLocationServiceEnabled) {
-        _setError(_translations.enableLocation);
-        return;
-      }
-
-      // 2. Resolve parameters from initConfig
       final fitrusApiKey = widget.initConfig.fitrusApiKey;
       final omronApiKey = widget.initConfig.omronApiKey;
-      // 5. Initialize Plugin (if needed)
       final initSuccess = await _smHealthDevices.init(
         config: HealthDevicesConfig(
           fitrusApiKey: fitrusApiKey,
@@ -209,7 +259,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
         return;
       }
 
-      // 6. All checks passed - Start Flow
+      // All checks passed - Start Flow
       _startMeasurementFlow();
     } catch (e) {
       if (mounted) {
@@ -588,12 +638,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
     widget.onError?.call(_errorMessage);
   }
 
-  @override
-  void dispose() {
-    _subscription?.cancel();
-    _stopActiveMeasurement();
-    super.dispose();
-  }
+
 
   Future<void> _stopActiveMeasurement() {
     if (_hasStopped) return _activeStopFuture ?? Future.value();
@@ -661,6 +706,11 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
   }
 
   Widget _buildContent() {
+    // 0. Requirements State: If permissions/services are missing and not in init state
+    if (!_requirementStatus.isAllSatisfied && !_isInInitState) {
+      return _buildRequirementsCard();
+    }
+
     // 0. Init State (if initBuilder provided)
     if (_isInInitState && widget.initBuilder != null) {
       return widget.initBuilder!(
@@ -728,6 +778,265 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget> {
       context,
       currentEvent,
       _handleBackAttempt, // On Cancel
+    );
+  }
+
+  Widget _buildRequirementsCard() {
+    final translations = _translations;
+    final primaryColor = widget.uiConfig.textColor != null
+        ? Colors.blue
+        : Theme.of(context).primaryColor;
+
+    final cardBgColor = widget.uiConfig.backgroundColor != null &&
+            widget.uiConfig.backgroundColor != Colors.transparent
+        ? widget.uiConfig.backgroundColor!
+        : Theme.of(context).cardColor;
+
+    return Center(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420),
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: cardBgColor,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Header Icon
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.shield_outlined,
+                  color: primaryColor,
+                  size: 36,
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Title
+              Text(
+                translations.requiredPermissionsAndServices,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: widget.uiConfig.textColor ??
+                      Theme.of(context).textTheme.titleLarge?.color,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                translations.permissionsAndServicesDescription,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Items List
+              _buildRequirementRow(
+                icon: Icons.bluetooth_searching_rounded,
+                title: translations.bluetoothPermission,
+                isSatisfied: _requirementStatus.hasBluetoothPermission,
+                statusText: _requirementStatus.hasBluetoothPermission
+                    ? translations.granted
+                    : translations.denied,
+                actionLabel: translations.grantPermission,
+                onAction: () async {
+                  await _smHealthDevices.permissions.requestBasePermissions();
+                  _checkRequirementsStatus();
+                },
+                primaryColor: primaryColor,
+              ),
+              const SizedBox(height: 10),
+              _buildRequirementRow(
+                icon: Icons.location_on_outlined,
+                title: translations.locationPermission,
+                isSatisfied: _requirementStatus.hasLocationPermission,
+                statusText: _requirementStatus.hasLocationPermission
+                    ? translations.granted
+                    : translations.denied,
+                actionLabel: translations.grantPermission,
+                onAction: () async {
+                  await _smHealthDevices.permissions.requestBasePermissions();
+                  _checkRequirementsStatus();
+                },
+                primaryColor: primaryColor,
+              ),
+              const SizedBox(height: 10),
+              _buildRequirementRow(
+                icon: Icons.bluetooth_rounded,
+                title: translations.bluetoothAdapter,
+                isSatisfied: _requirementStatus.isBluetoothEnabled,
+                statusText: _requirementStatus.isBluetoothEnabled
+                    ? translations.enabled
+                    : translations.disabled,
+                actionLabel: translations.turnOn,
+                onAction: () async {
+                  await _smHealthDevices.permissions.openSettings();
+                  _checkRequirementsStatus();
+                },
+                primaryColor: primaryColor,
+              ),
+              const SizedBox(height: 10),
+              _buildRequirementRow(
+                icon: Icons.gps_fixed_rounded,
+                title: translations.locationService,
+                isSatisfied: _requirementStatus.isLocationServiceEnabled,
+                statusText: _requirementStatus.isLocationServiceEnabled
+                    ? translations.enabled
+                    : translations.disabled,
+                actionLabel: translations.turnOn,
+                onAction: () async {
+                  await _smHealthDevices.permissions.requestLocationService();
+                  _checkRequirementsStatus();
+                },
+                primaryColor: primaryColor,
+              ),
+              const SizedBox(height: 24),
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _checkRequirementsStatus(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(translations.checkAgain),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await _smHealthDevices.permissions.requestBasePermissions();
+                        if (!_requirementStatus.isBluetoothEnabled ||
+                            !_requirementStatus.isLocationServiceEnabled) {
+                          await _smHealthDevices.permissions.openSettings();
+                        }
+                        _checkRequirementsStatus();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        backgroundColor: primaryColor,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(translations.grantAndEnableAll),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequirementRow({
+    required IconData icon,
+    required String title,
+    required bool isSatisfied,
+    required String statusText,
+    required String actionLabel,
+    required VoidCallback onAction,
+    required Color primaryColor,
+  }) {
+    final statusColor = isSatisfied ? Colors.green : Colors.red;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: isSatisfied
+            ? Colors.green.withValues(alpha: 0.06)
+            : Colors.red.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSatisfied
+              ? Colors.green.withValues(alpha: 0.2)
+              : Colors.red.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 22,
+            color: statusColor,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: statusColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isSatisfied)
+            const Icon(
+              Icons.check_circle_rounded,
+              color: Colors.green,
+              size: 22,
+            )
+          else
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                actionLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: primaryColor,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
