@@ -15,8 +15,10 @@ class SmFlutterHealthDevicesPlugin :
     // This local reference serves to register the plugin with the Flutter Engine and unregister it
     // when the Flutter Engine is detached from the Activity
     private lateinit var channel: MethodChannel
+    private lateinit var context: Context
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        context = flutterPluginBinding.applicationContext
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "sm_flutter_health_devices")
         channel.setMethodCallHandler(this)
     }
@@ -25,10 +27,24 @@ class SmFlutterHealthDevicesPlugin :
         call: MethodCall,
         result: Result
     ) {
-        if (call.method == "getPlatformVersion") {
-            result.success("Android ${android.os.Build.VERSION.RELEASE}")
-        } else {
-            result.notImplemented()
+        when (call.method) {
+            "getPlatformVersion" -> {
+                result.success("Android ${android.os.Build.VERSION.RELEASE}")
+            }
+            "openLocationSettings" -> {
+                try {
+                    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                    result.success(true)
+                } catch (e: Exception) {
+                    result.error("LOCATION_SETTINGS_ERROR", e.message, null)
+                }
+            }
+            else -> {
+                result.notImplemented()
+            }
         }
     }
 

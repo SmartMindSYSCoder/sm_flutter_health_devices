@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -268,14 +269,20 @@ class HealthPermissionManager {
     }
   }
 
-  /// Request to enable location service
+  static const MethodChannel _channel = MethodChannel('sm_flutter_health_devices');
+
+  /// Request to enable location service (opens Location/GPS Settings page directly)
   Future<bool> requestLocationService() async {
     try {
-      // Open location settings
-      return await openAppSettings();
+      if (Platform.isAndroid) {
+        final result = await _channel.invokeMethod<bool>('openLocationSettings');
+        return result ?? false;
+      } else {
+        return await openAppSettings();
+      }
     } catch (e) {
       debugPrint('Error opening location settings: $e');
-      return false;
+      return await openAppSettings();
     }
   }
 
