@@ -771,7 +771,6 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                       ),
                       onResult: (result) {
                         _markMeasurementTested(type);
-                        Navigator.pop(context);
                         final items =
                             _getFormattedResultItems(result, translations);
                         ScaffoldMessenger.of(context).showSnackBar(
