@@ -163,6 +163,18 @@ class SmHealthSettingsPage extends StatefulWidget {
 
 class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
   final SmHealthDevices _healthDevices = SmHealthDevices();
+  final Set<MeasurementType> _sessionTestedTypes = {};
+
+  void _markMeasurementTested(MeasurementType type) {
+    if (!_sessionTestedTypes.contains(type)) {
+      _sessionTestedTypes.add(type);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    }
+  }
 
   SmHealthSettingsTranslations get _translations =>
       SmHealthSettingsTranslations(widget.initConfig.lang);
@@ -403,6 +415,7 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
     final currentProvider =
         _healthDevices.settingsManager.getPreferredProvider(type);
     final supportedProviders = type.supportedProviders;
+    final isTested = _sessionTestedTypes.contains(type);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -476,53 +489,63 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                // Trailing Action Button: "Test Device"
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () {
-                      if (widget.onTestMeasurement != null) {
-                        widget.onTestMeasurement!(
-                            context, type, currentProvider);
-                      } else {
-                        _openTestMeasurementDialog(
-                            context, type, currentProvider);
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Ink(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: settingsTheme.primarySoftColor,
+                // Trailing Action Area: Optional Banner & "Test Device" Button
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (isTested) _buildSuccessBanner(settingsTheme),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          if (widget.onTestMeasurement != null) {
+                            _markMeasurementTested(type);
+                            widget.onTestMeasurement!(
+                                context, type, currentProvider);
+                          } else {
+                            _openTestMeasurementDialog(
+                                context, type, currentProvider);
+                          }
+                        },
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: settingsTheme.primaryColor
-                              .withValues(alpha: 0.35),
-                          width: 1.2,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.sensors_rounded,
-                            size: 16,
-                            color: settingsTheme.primaryColor,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _translations.testDevice,
-                            style: TextStyle(
-                              color: settingsTheme.primaryColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                        child: Ink(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: settingsTheme.primarySoftColor,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: settingsTheme.primaryColor
+                                  .withValues(alpha: 0.35),
+                              width: 1.2,
                             ),
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.sensors_rounded,
+                                size: 16,
+                                color: settingsTheme.primaryColor,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _translations.testDevice,
+                                style: TextStyle(
+                                  color: settingsTheme.primaryColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
@@ -607,6 +630,39 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSuccessBanner(SmHealthSettingsThemeData settingsTheme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: settingsTheme.successColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: settingsTheme.successColor.withValues(alpha: 0.3),
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check_circle_rounded,
+            size: 14,
+            color: settingsTheme.successColor,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            _translations.measuredSuccessfully,
+            style: TextStyle(
+              color: settingsTheme.successColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -714,6 +770,7 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                         textColor: settingsTheme.textColor,
                       ),
                       onResult: (result) {
+                        _markMeasurementTested(type);
                         Navigator.pop(context);
                         final items =
                             _getFormattedResultItems(result, translations);
@@ -791,6 +848,7 @@ class _SmHealthSettingsPageState extends State<SmHealthSettingsPage> {
                         );
                       },
                       successBuilder: (context, result, onSave, onReset) {
+                        _markMeasurementTested(type);
                         final dataEntries =
                             _getFormattedResultItems(result, translations);
 

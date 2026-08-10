@@ -1,5 +1,8 @@
 package com.smartmind.sm_flutter_health_devices
 
+import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel

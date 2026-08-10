@@ -42,6 +42,8 @@ class SmHealthSettingsTranslations {
   String get save => isArabic ? 'حفظ' : 'Save';
   String get measurementSuccess =>
       isArabic ? 'تم إكمال القياس بنجاح' : 'Measurement Successful';
+  String get measuredSuccessfully =>
+      isArabic ? 'تم القياس بنجاح' : 'Measured Successfully';
   String get resetToDefaultsQuestion =>
       isArabic ? 'إعادة ضبط الإعدادات؟' : 'Reset to Defaults?';
   String get resetToDefaultsDescription => isArabic

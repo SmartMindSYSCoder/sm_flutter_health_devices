@@ -11,6 +11,7 @@ void main() {
     expect(translations.languageCode, 'en');
     expect(translations.textDirection, TextDirection.ltr);
     expect(translations.measurementSettings, 'Measurement Settings');
+    expect(translations.measuredSuccessfully, 'Measured Successfully');
     expect(translations.measurementType(MeasurementType.weight), 'Weight');
     expect(translations.provider(DeviceProvider.omron), 'Omron');
   });
@@ -22,6 +23,7 @@ void main() {
     expect(translations.languageCode, 'ar');
     expect(translations.textDirection, TextDirection.rtl);
     expect(translations.measurementSettings, 'إعدادات القياسات');
+    expect(translations.measuredSuccessfully, 'تم القياس بنجاح');
     expect(translations.measurementType(MeasurementType.weight), 'الوزن');
     expect(translations.provider(DeviceProvider.omron), 'أومرون');
     expect(
