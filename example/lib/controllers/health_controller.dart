@@ -131,7 +131,7 @@ class HealthController extends ChangeNotifier {
     required double heightCm,
     required double weightKg,
     required Gender gender,
-    required String birthDate,
+    required DateTime birthDate,
   }) async {
     _events.clear(); // Clear previous session events
     _statusMessage = 'Starting body composition...';

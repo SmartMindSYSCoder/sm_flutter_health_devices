@@ -125,13 +125,17 @@ class _DemoUsagePageState extends State<DemoUsagePage>
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => SmHealthSettingsPage.open(context,
-                initConfig: const SmHealthInitConfig(
-                  fitrusApiKey: _kFitrusApiKey,
-                  omronApiKey: _kOmronApiKey,
-                  lang: SmHealthSettingsLanguage.ar,
-                  timeout: Duration(seconds: 30),
-                  measuringTimeout: Duration(seconds: 30),
-                ),
+                initConfig: SmHealthInitConfig(
+                    fitrusApiKey: _kFitrusApiKey,
+                    omronApiKey: _kOmronApiKey,
+                    lang: SmHealthSettingsLanguage.ar,
+                    timeout: const Duration(seconds: 30),
+                    measuringTimeout: const Duration(seconds: 30),
+                    userProfile: SmUserProfile(
+                        heightCm: 155,
+                        weightKg: 55,
+                        gender: Gender.male,
+                        birthDate: DateTime(2002, 10, 12))),
                 theme: const SmHealthSettingsThemeData()),
             tooltip: 'Settings',
           ),
@@ -428,11 +432,11 @@ class _DemoUsagePageState extends State<DemoUsagePage>
                             userProfile: option.type ==
                                         MeasurementType.bodyComposition ||
                                     option.type == MeasurementType.weight
-                                ? const SmUserProfile(
+                                ? SmUserProfile(
                                     heightCm: 165,
-                                    weightKg: 0,
+                                    weightKg: 65,
                                     gender: Gender.male,
-                                    birthDate: "19970101",
+                                    birthDate: DateTime(1997, 1, 1),
                                   )
                                 : null,
                           ),

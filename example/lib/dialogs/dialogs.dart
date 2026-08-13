@@ -94,7 +94,7 @@ class ProviderBottomSheet extends StatelessWidget {
 /// Dialog for body composition input
 class BodyCompositionDialog extends StatefulWidget {
   final void Function(
-      double height, double weight, Gender gender, String birthDate) onStart;
+      double height, double weight, Gender gender, DateTime birthDate) onStart;
 
   const BodyCompositionDialog({
     super.key,
@@ -104,7 +104,7 @@ class BodyCompositionDialog extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     required void Function(
-            double height, double weight, Gender gender, String birthDate)
+            double height, double weight, Gender gender, DateTime birthDate)
         onStart,
   }) {
     return showDialog(
@@ -192,11 +192,9 @@ class _BodyCompositionDialogState extends State<BodyCompositionDialog> {
   void _submit() {
     final height = double.tryParse(_heightController.text) ?? 170;
     final weight = double.tryParse(_weightController.text) ?? 70;
-    final birthDate =
-        '${_birthDate.year}${_birthDate.month.toString().padLeft(2, '0')}${_birthDate.day.toString().padLeft(2, '0')}';
 
     Navigator.pop(context);
-    widget.onStart(height, weight, _gender, birthDate);
+    widget.onStart(height, weight, _gender, _birthDate);
   }
 
   @override

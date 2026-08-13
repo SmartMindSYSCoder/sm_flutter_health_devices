@@ -195,24 +195,14 @@ class _SmOmronDevicesPageState extends State<SmOmronDevicesPage> {
           omron.PersonalInfo? personalInfo;
           if (widget.initConfig.userProfile != null) {
             final profile = widget.initConfig.userProfile!;
-            DateTime dob;
-            try {
-              if (profile.birthDate.length == 8) {
-                final year = int.parse(profile.birthDate.substring(0, 4));
-                final month = int.parse(profile.birthDate.substring(4, 6));
-                final day = int.parse(profile.birthDate.substring(6, 8));
-                dob = DateTime(year, month, day);
-              } else {
-                dob = DateTime.parse(profile.birthDate);
-              }
-            } catch (_) {
-              dob = DateTime(1990, 1, 1);
-            }
+            final weight = profile.weightKg > 0 ? profile.weightKg : 60.0;
+            final height = profile.heightCm > 0 ? profile.heightCm : 170.0;
+
             personalInfo = omron.PersonalInfo(
-              heightCm: profile.heightCm,
-              weightKg: profile.weightKg,
-              strideCm: profile.heightCm * 0.415,
-              dateOfBirth: dob,
+              heightCm: height,
+              weightKg: weight,
+              strideCm: height * 0.415,
+              dateOfBirth: profile.birthDate,
               gender: profile.gender == Gender.male
                   ? omron.Gender.male
                   : omron.Gender.female,

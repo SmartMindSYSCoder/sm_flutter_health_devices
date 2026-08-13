@@ -961,7 +961,7 @@ class SmHealthDevices {
     required double heightCm,
     required double weightKg,
     required Gender gender,
-    required String birthDate, // Format: yyyyMMdd
+    required dynamic birthDate, // DateTime or 'yyyyMMdd' String
   }) async {
     if (!_isFitrusInitialized) {
       debugPrint(
@@ -973,6 +973,8 @@ class SmHealthDevices {
       );
     }
 
+    final formattedBirth = _formatBirthDate(birthDate);
+
     try {
       debugPrint('SmHealthDevices: Starting Fitrus measurement...');
       // Inject immediate connecting status
@@ -983,7 +985,7 @@ class SmHealthDevices {
         message: 'Connecting to Fitrus...',
       ));
       debugPrint(
-          'SmHealthDevices: Fitrus measurement parameters: height: $heightCm cm, weight: $weightKg kg, gender: $gender, birthDate: $birthDate');
+          'SmHealthDevices: Fitrus measurement parameters: height: $heightCm cm, weight: $weightKg kg, gender: $gender, birthDate: $formattedBirth');
 
       debugPrint('SmHealthDevices: Calling Fitrus startBFP...');
       await _fitrus.measureBFP(
@@ -993,7 +995,7 @@ class SmHealthDevices {
         gender: gender == Gender.male
             ? fitrus.FitrusGender.male
             : fitrus.FitrusGender.female,
-        birth: birthDate,
+        birth: formattedBirth,
       );
       debugPrint('SmHealthDevices: Fitrus startBFP called.');
 
@@ -1014,6 +1016,18 @@ class SmHealthDevices {
     }
   }
 
+  /// Helper to convert birthDate (DateTime or String) to yyyyMMdd
+  String _formatBirthDate(dynamic birth) {
+    if (birth is DateTime) {
+      return '${birth.year}'
+          '${birth.month.toString().padLeft(2, '0')}'
+          '${birth.day.toString().padLeft(2, '0')}';
+    } else if (birth is String) {
+      return birth;
+    }
+    return '19900101';
+  }
+
   /// Start body composition measurement
   ///
   /// IMPORTANT: You must call [initFitrus] first and wait for connection before calling this method.
@@ -1027,11 +1041,12 @@ class SmHealthDevices {
     required double heightCm,
     required double weightKg,
     required Gender gender,
-    required String birthDate, // Format: yyyyMMdd
+    required dynamic birthDate, // DateTime or 'yyyyMMdd' String
     Duration? timeout,
     Duration? measuringTimeout,
   }) async {
     _isFitrusMeasuring = true;
+    final formattedBirth = _formatBirthDate(birthDate);
 
     try {
       // Ensure we are listening to events!
@@ -1065,7 +1080,7 @@ class SmHealthDevices {
           gender: gender == Gender.male
               ? fitrus.FitrusGender.male
               : fitrus.FitrusGender.female,
-          birth: birthDate,
+          birth: formattedBirth,
         );
         debugPrint('SmHealthDevices: Fitrus startBFP called successfully.');
       } catch (e) {

@@ -11,8 +11,8 @@ class SmUserProfile {
   /// User gender
   final Gender gender;
 
-  /// Birth date in 'yyyyMMdd' format
-  final String birthDate;
+  /// User birth date
+  final DateTime birthDate;
 
   const SmUserProfile({
     required this.heightCm,
@@ -21,12 +21,19 @@ class SmUserProfile {
     required this.birthDate,
   });
 
+  /// Formatted birth date as 'YYYYMMDD' for native SDKs
+  String get formattedBirthDate {
+    return '${birthDate.year}'
+        '${birthDate.month.toString().padLeft(2, '0')}'
+        '${birthDate.day.toString().padLeft(2, '0')}';
+  }
+
   /// Create a copy with modified fields
   SmUserProfile copyWith({
     double? heightCm,
     double? weightKg,
     Gender? gender,
-    String? birthDate,
+    DateTime? birthDate,
   }) {
     return SmUserProfile(
       heightCm: heightCm ?? this.heightCm,
