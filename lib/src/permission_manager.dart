@@ -102,8 +102,14 @@ class HealthRequirementStatus {
 
 /// Manages all permissions required for health device plugins
 class HealthPermissionManager {
+  @visibleForTesting
+  static HealthRequirementStatus? debugMockStatus;
+
   /// Check all required permissions and services in a single call
   Future<HealthRequirementStatus> checkAllRequirements() async {
+    if (debugMockStatus != null) {
+      return debugMockStatus!;
+    }
     final btPerm = await checkBluetoothPermissions();
     final locPerm = await checkLocationPermission();
     final btEnabled = await isBluetoothEnabled();

@@ -705,7 +705,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget>
       return widget.initBuilder!(
         context,
         _initAndStart, // On Start
-        _handleBackAttempt, // On Cancel
+        _cancelDirectly, // On Cancel
       );
     }
 
@@ -719,7 +719,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget>
           });
           _retryMeasurement();
         },
-        _handleBackAttempt,
+        _cancelDirectly,
       );
     }
 
@@ -729,7 +729,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget>
         context,
         _errorMessage!,
         _retryMeasurement, // On Retry
-        _handleBackAttempt, // On Cancel
+        _cancelDirectly, // On Cancel
       );
     }
 
@@ -766,7 +766,7 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget>
     return widget.stateBuilder(
       context,
       currentEvent,
-      _handleBackAttempt, // On Cancel
+      _cancelDirectly, // On Cancel
     );
   }
 
@@ -1029,6 +1029,12 @@ class _SmHealthDeviceWidgetState extends State<SmHealthDeviceWidget>
         ],
       ),
     );
+  }
+
+  void _cancelDirectly() {
+    _subscription?.cancel();
+    _stopActiveMeasurement();
+    _finalizeAndExit();
   }
 
   Future<void> _handleBackAttempt() async {

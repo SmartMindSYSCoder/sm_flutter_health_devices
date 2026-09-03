@@ -659,6 +659,7 @@ class SmHealthDevices {
     required MeasurementType measurementType,
   }) async {
     try {
+      _clearMeasurementTimer();
       // 2. Cancel provider-specific stream subscription
       if (provider == DeviceProvider.lepu) {
         await _lepuSubscription?.cancel();
