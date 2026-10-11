@@ -56,7 +56,7 @@ dependencies:
   # Stream utilities for combining streams
   rxdart: ^0.28.0
 
-  flutter_reactive_ble: ^5.4.0
+  flutter_reactive_ble: ^5.6.0
   flutter_blue_plus: ^2.2.1
 
 
